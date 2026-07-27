@@ -3,3 +3,6 @@ build/
 bin/
 out/
 *.class
+
+# --- OS generated files ---
+.DS_Store

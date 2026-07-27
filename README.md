@@ -2,9 +2,9 @@
 
 Install these before you start:
 
-| **JDK 17 or newer** | Verify with `java -version` |
-| **MySQL 8.0+** | Server must be running locally. Verify with `mysql --version` |
-| **Git** | To clone the repository |
+- **JDK 17 or newer** | Verify with `java -version`
+- **MySQL 8.0+** | Server must be running locally. Verify with `mysql --version`
+- **Git** | To clone the repository
 
 ---
 
@@ -12,7 +12,7 @@ Install these before you start:
 
 ### 1. Clone the repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/farisshab/mytix-faris-tareq
 cd mytix
 ```
 
