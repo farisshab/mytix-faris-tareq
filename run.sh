@@ -3,7 +3,13 @@
 # Usage: ./run.sh
 set -e
 
-MYSQL_JAR="src/lib/mysql-connector-java-8.0.29.jar"
+# First run: create your local config from the template if it isn't there yet.
+if [ ! -f config.properties ]; then
+  cp config.properties.example config.properties
+  echo "Created config.properties from the template; edit it if your MySQL login is different."
+fi
+
+MYSQL_JAR="src/lib/mysql-connector-j-8.4.0.jar"
 BUILD_DIR="build"
 
 if [ ! -f "$MYSQL_JAR" ]; then

@@ -6,3 +6,6 @@ out/
 
 # --- OS generated files ---
 .DS_Store
+
+# --- Local DB config (each dev keeps their own; copy from config.properties.example) ---
+config.properties

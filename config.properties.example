@@ -1,0 +1,7 @@
+# MyTix local database config.
+# Copy this to config.properties and adjust for your machine if your MySQL
+# login differs from the defaults below. config.properties is gitignored, so
+# everyone keeps their own local credentials.
+db.url=jdbc:mysql://localhost:3306/mytix
+db.user=root
+db.password=
