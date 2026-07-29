@@ -27,7 +27,7 @@ public class SearchMenu {
     private static void printMenu() {
         System.out.print("""
                 
-            === Search & Browse ===
+            === Search ===
             1) Q1
             2) Q2
             3) Q3
