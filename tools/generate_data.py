@@ -188,10 +188,84 @@ REVIEW_SENTENCES = [
 
 BILLING = ["HEADLINER", "SPECIAL_GUEST", "OPENING_ACT"]
 
+# Section layouts per venue kind: (name, type, rows, seats_per_row). GA sections
+# ignore rows and use the last value as capacity. Arenas and clubs include a GA
+# section, so several venues end up with both reserved and general admission.
+SECTION_LAYOUTS = {
+    "arena": [
+        ("Floor", "RESERVED", 10, 20),
+        ("Lower Bowl", "RESERVED", 18, 22),
+        ("Upper Bowl", "RESERVED", 24, 24),
+        ("General Admission", "GA", None, 500),
+    ],
+    "stadium": [
+        ("Field Level", "RESERVED", 14, 28),
+        ("100 Level", "RESERVED", 26, 30),
+        ("500 Level", "RESERVED", 34, 32),
+    ],
+    "theatre": [
+        ("Orchestra", "RESERVED", 14, 24),
+        ("Mezzanine", "RESERVED", 10, 22),
+        ("Balcony", "RESERVED", 8, 20),
+    ],
+    "club": [
+        ("Floor", "GA", None, 400),
+        ("Balcony", "RESERVED", 6, 18),
+    ],
+}
+
+CONCERT_SUFFIXES = ["World Tour", "Live", "In Concert", "The Arena Tour", "Homecoming Show"]
+
+# Small pools for the made-up people (customers and organizers).
+FIRST_NAMES = ["Olivia", "Liam", "Emma", "Noah", "Ava", "William", "Sophia",
+               "James", "Isabella", "Lucas", "Mia", "Benjamin", "Charlotte",
+               "Ethan", "Amelia", "Daniel", "Harper", "Matthew", "Evelyn",
+               "Jack", "Aria", "Leo", "Zoe", "Omar", "Priya", "Diego"]
+LAST_NAMES = ["Smith", "Johnson", "Tremblay", "Nguyen", "Patel", "Brown",
+              "Martin", "Lee", "Garcia", "Roy", "Wilson", "Chen", "Singh",
+              "Cote", "Taylor", "Khan", "Wong", "Bouchard", "Reyes", "Kim",
+              "Silva", "Ali", "Murphy", "Ivanov", "Rossi", "Haddad"]
+STREETS = ["Main St", "King St", "Queen St", "Bay St", "Sherbrooke St", "Peel St",
+           "Broadway", "5th Ave", "Beacon St", "Boylston St", "College St", "Dundas St"]
+
 
 # ---------------------------------------------------------------------------
-# Build steps (run in FK order). build_taxonomy is filled in as the pattern;
-# the rest are stubs whose docstrings list what they must guarantee.
+# Shared lookups, filled in as the build steps run
+# ---------------------------------------------------------------------------
+
+GENRE_ID = {}          # genre_name -> genre_id
+ARTIST_NAME = {}       # artist_id -> name
+ARTISTS_BY_GENRE = {}  # genre_name -> [artist_id, ...]
+ORGANIZERS = []        # organizer user_ids
+CUSTOMERS = []         # customer user_ids
+VENUES_BUILT = []      # per-venue layout: sections, rows, seat ids
+EVENTS_BUILT = []      # per-event info: id, genre, kind, artist ids
+
+
+def _row_names(n):
+    """A, B, ... Z, AA, AB, ... for n rows."""
+    names = []
+    i = 0
+    while len(names) < n:
+        if i < 26:
+            names.append(chr(ord("A") + i))
+        else:
+            names.append(chr(ord("A") + i // 26 - 1) + chr(ord("A") + i % 26))
+        i += 1
+    return names
+
+
+def _event_kind(genre):
+    if genre in ("Basketball", "Hockey"):
+        return "sports"
+    if genre in ("Musical", "Play"):
+        return "theatre"
+    return "concert"
+
+
+# ---------------------------------------------------------------------------
+# Build steps (run in FK order). Later stubs' docstrings list what they must
+# guarantee.
 # ---------------------------------------------------------------------------
 
 def build_taxonomy():
@@ -200,53 +274,110 @@ def build_taxonomy():
     for segment_name, genres in TAXONOMY.items():
         seg_id = add("segment", segment_name=segment_name)
         for genre_name in genres:
-            add("genre", segment_id=seg_id, genre_name=genre_name)
+            GENRE_ID[genre_name] = add("genre", segment_id=seg_id, genre_name=genre_name)
 
 
 def build_venues():
-    """venue + section + seat_row + seat.
-
-    Must guarantee:
-      - all 8 VENUES loaded, with their real coords/addresses
-      - every venue has several sections; sizes vary by "kind"
-      - at least 2 venues have BOTH a reserved and a GA section
-      - reserved sections get rows (A, B, ...) x numbered seats (1..N)
-      - keep enough seats around that later scenarios (consecutive open row,
-        sold-out show) have room to work with
-    """
-    # TODO
-    raise NotImplementedError
+    """venue + section + seat_row + seat, laid out per venue kind."""
+    for v in VENUES:
+        vid = add("venue", name=v["name"], latitude=v["lat"], longitude=v["lng"],
+                  address=v["address"], postal_code=v["postal"], city=v["city"],
+                  country=v["country"])
+        vinfo = {"venue_id": vid, "city": v["city"], "country": v["country"],
+                 "kind": v["kind"], "sections": []}
+        for sec_name, sec_type, n_rows, size in SECTION_LAYOUTS[v["kind"]]:
+            if sec_type == "GA":
+                sid = add("section", venue_id=vid, section_name=sec_name,
+                          section_type="GA", ga_capacity=size)
+                vinfo["sections"].append(
+                    {"section_id": sid, "type": "GA", "ga_capacity": size, "rows": []})
+            else:
+                sid = add("section", venue_id=vid, section_name=sec_name,
+                          section_type="RESERVED", ga_capacity=None)
+                rows = []
+                for rname in _row_names(n_rows):
+                    rid = add("seat_row", section_id=sid, row_name=rname)
+                    seats = [add("seat", row_id=rid, seat_number=n)
+                             for n in range(1, size + 1)]
+                    rows.append({"row_id": rid, "row_name": rname, "seats": seats})
+                vinfo["sections"].append(
+                    {"section_id": sid, "type": "RESERVED", "ga_capacity": None, "rows": rows})
+        VENUES_BUILT.append(vinfo)
 
 
 def build_users():
-    """users (customers + organizers) + credit_card.
+    """users (customers + organizers) plus a fake card per customer. Emails are unique
+    and everyone is 18+ (see the DOB range)."""
+    used_emails = set()
 
-    Must guarantee:
-      - >= NUM_CUSTOMERS customers, all 18+ (valid date_of_birth), each with a card
-      - >= NUM_ORGANIZERS organizers
-      - unique emails
-    """
-    # TODO
-    raise NotImplementedError
+    def make_user(role):
+        first, last = random.choice(FIRST_NAMES), random.choice(LAST_NAMES)
+        seq = len(used_emails) + 1
+        email = f"{first}.{last}{seq}@example.com".lower()
+        used_emails.add(email)
+        # 19..70 at the gen anchor, so still 18+ whenever the data is loaded
+        dob = (GEN_NOW - timedelta(days=random.randint(19 * 365, 70 * 365))).strftime("%Y-%m-%d")
+        uid = add("users", full_name=f"{first} {last}",
+                  address=f"{random.randint(1, 999)} {random.choice(STREETS)}",
+                  email=email, date_of_birth=dob, role=role, is_deleted=False)
+        return uid, f"{first} {last}"
+
+    for _ in range(NUM_ORGANIZERS):
+        uid, _name = make_user("ORGANIZER")
+        ORGANIZERS.append(uid)
+
+    for _ in range(NUM_CUSTOMERS):
+        uid, name = make_user("CUSTOMER")
+        CUSTOMERS.append(uid)
+        add("credit_card", customer_id=uid,
+            card_number="".join(str(random.randint(0, 9)) for _ in range(16)),
+            cardholder_name=name,
+            expiry_month=random.randint(1, 12),
+            expiry_year=random.randint(2027, 2032))
 
 
 def build_artists():
-    """artist. Load all of ARTISTS (>= 15, mix of individuals and teams)."""
-    # TODO
-    raise NotImplementedError
+    """artist (people and teams). Also records name and genre lookups for events."""
+    for name, atype, genre in ARTISTS:
+        aid = add("artist", artist_name=name, artist_type=atype)
+        ARTIST_NAME[aid] = name
+        ARTISTS_BY_GENRE.setdefault(genre, []).append(aid)
 
 
 def build_events():
-    """event + event_artist.
-
-    Must guarantee:
-      - >= 20 events across >= 5 organizers, >= 3 segments and >= 6 genres
-      - >= 15 distinct artists featured overall
-      - some events feature 2+ artists with different billing orders
-      - resale_cap_pct set (default 120, vary a couple)
-    """
-    # TODO
-    raise NotImplementedError
+    """event + event_artist. Three events per genre (24 total) spread across
+    organizers; sports events feature two teams, some concerts add an opener."""
+    org_i = 0
+    for genre in list(GENRE_ID):
+        for _ in range(3):
+            organizer = ORGANIZERS[org_i % len(ORGANIZERS)]
+            org_i += 1
+            cap = 120.00 if random.random() < 0.8 else random.choice([110.00, 125.00, 150.00])
+            acts = ARTISTS_BY_GENRE.get(genre, [])
+            kind = _event_kind(genre)
+            if kind == "sports" and len(acts) >= 2:
+                home, away = random.sample(acts, 2)
+                eid = add("event", organizer_id=organizer,
+                          title=f"{ARTIST_NAME[home]} vs {ARTIST_NAME[away]}",
+                          genre_id=GENRE_ID[genre], resale_cap_pct=cap)
+                add("event_artist", event_id=eid, artist_id=home, billing_order="HEADLINER")
+                add("event_artist", event_id=eid, artist_id=away, billing_order="SPECIAL_GUEST")
+                featured = [home, away]
+            else:
+                headliner = random.choice(acts)
+                title = ARTIST_NAME[headliner] if kind == "theatre" \
+                    else f"{ARTIST_NAME[headliner]}: {random.choice(CONCERT_SUFFIXES)}"
+                eid = add("event", organizer_id=organizer, title=title,
+                          genre_id=GENRE_ID[genre], resale_cap_pct=cap)
+                add("event_artist", event_id=eid, artist_id=headliner, billing_order="HEADLINER")
+                featured = [headliner]
+                others = [a for a in acts if a != headliner]
+                if kind == "concert" and others and random.random() < 0.5:
+                    opener = random.choice(others)
+                    add("event_artist", event_id=eid, artist_id=opener, billing_order="OPENING_ACT")
+                    featured.append(opener)
+            EVENTS_BUILT.append({"event_id": eid, "genre": genre, "kind": kind,
+                                 "artist_ids": featured})
 
 
 def build_performances():
