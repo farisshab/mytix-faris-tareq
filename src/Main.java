@@ -1,7 +1,5 @@
 import db.DBConfig;
 import db.DBConnection;
-import menu.MenuController;
-
 import java.sql.Connection;
 
 // This acts as an entry point. It will load the DB config, opens one connection for the session, and closes it on exit
@@ -16,7 +14,7 @@ public class Main {
             DBConfig config = new DBConfig(configPath);
             try (Connection conn = DBConnection.connect(config)) {
                 System.out.println("Connected to MyTix database,");
-                new MenuController(conn).run();
+                HomeMenu.listMenu(conn);
             }
         } catch (Exception e) {
             System.err.println("Fatal error: " + e.getMessage());
