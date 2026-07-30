@@ -23,6 +23,11 @@ public class UserOps {
         System.out.print("Email > ");
         String email = scanner.nextLine().trim();
 
+        if (email.isEmpty()) {
+            System.out.println("Email cannot be empty.");
+            return;
+        }
+
         EmailLookup existing = lookupEmail(conn, email);
 
         if (existing.userId() != null && !existing.isDeleted()) {
@@ -52,8 +57,18 @@ public class UserOps {
         System.out.print("Full name > ");
         String fullName = scanner.nextLine().trim();
 
+        if (fullName.isEmpty()) {
+            System.out.println("Name cannot be empty.");
+            return;
+        }
+
         System.out.print("Address > ");
         String address = scanner.nextLine().trim();
+
+        if (address.isEmpty()) {
+            System.out.println("Address cannot be empty.");
+            return;
+        }
 
         LocalDate dob = promptValidDateOfBirth(scanner);
         if (dob == null) {
@@ -110,6 +125,111 @@ public class UserOps {
         return true;
     }
 
+    public static void viewAccountInfo(Connection conn, Session session) throws SQLException {
+        String sql = "SELECT full_name, address, email, date_of_birth, role FROM users WHERE user_id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, session.userId());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    System.out.println("Account information not found.");
+                    return;
+                }
+                System.out.println("\n=== Account Information ===");
+                System.out.printf("Name:           %s%n", rs.getString("full_name"));
+                System.out.printf("Address:        %s%n", rs.getString("address"));
+                System.out.printf("Email:          %s%n", rs.getString("email"));
+                System.out.printf("Date of birth:  %s%n", rs.getString("date_of_birth"));
+                System.out.printf("Role:           %s%n", rs.getString("role"));
+            }
+        }
+    }
+
+    public static void viewCreditCardInfo(Connection conn, Session session) throws SQLException {
+        if (!"CUSTOMER".equals(session.role())) {
+            System.out.println("Only customer accounts have payment info to view.");
+            return;
+        }
+
+        // A customer may have more than one credit card, so query them all
+        String sql = "SELECT card_number, cardholder_name, expiry_month, expiry_year " + "FROM credit_card WHERE customer_id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, session.userId());
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n=== Credit Card Information ===");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("Card number:       %s%n", rs.getString("card_number"));
+                    System.out.printf("Cardholder name:   %s%n", rs.getString("cardholder_name"));
+                    System.out.printf("Expiry:            %02d/%d%n", rs.getInt("expiry_month"), rs.getInt("expiry_year"));
+                    System.out.println("===============================");
+                }
+
+                if (!any) {
+                    System.out.println("No credit card on file.");
+                }
+            }
+        }
+    }
+
+    public static void updateEmail(Connection conn, Scanner scanner, Session session) throws SQLException {
+        System.out.print("Enter new Email Address: > ");
+        String newEmail = scanner.nextLine().trim();
+
+        if (newEmail.isEmpty()) {
+            System.out.println("Email cannot be empty.");
+            return;
+        }
+
+        int userId = session.userId();
+
+        EmailLookup existing = lookupEmail(conn, newEmail);
+        if (existing.userId() != null && existing.userId() != userId) {
+            System.out.println("That email is already registered to another account.");
+            return;
+        }
+
+        updateUserEmail(conn, userId, newEmail);
+        System.out.println("Email updated successfully.");
+    }
+
+    public static void updateAddress(Connection conn, Scanner scanner, Session session) throws SQLException {
+        System.out.print("Enter new address: > ");
+        String newAddress = scanner.nextLine().trim();
+
+        if (newAddress.isEmpty()) {
+            System.out.println("Address cannot be empty.");
+            return;
+        }
+
+        updateUserAddress(conn, session.userId(), newAddress);
+        System.out.println("Address updated successfully.");
+    }
+
+    public static void updateCreditCardInfo(Connection conn, Scanner scanner, Session session) throws SQLException {
+        int userId = session.userId();
+
+        String role = session.role();
+
+        if (!"CUSTOMER".equals(role)) {
+            System.out.println("Only customer accounts have payment info to update.");
+            return;
+        }
+
+        CreditCardInfo card = promptCreditCardDetails(scanner);
+        if (card == null) {
+            System.out.println("Aborting credit card update...");
+            return;
+        }
+
+        if (existsWhere(conn, "SELECT 1 FROM credit_card WHERE customer_id = ?", userId)) {
+            updateCreditCard(conn, userId, card);
+        } else {
+            insertCreditCard(conn, userId, card);
+        }
+        System.out.println("Credit card info updated successfully.");
+    }
+
     // PROMPT/INPUT HELPER FUNCTIONS
 
     private static String promptRole(Scanner scanner) {
@@ -151,6 +271,27 @@ public class UserOps {
                 }
                 return new EmailLookup(rs.getInt("user_id"), rs.getBoolean("is_deleted"));
             }
+        }
+    }
+
+    private static void updateUserEmail(Connection conn, int userId, String email) throws SQLException {
+        String sql = "UPDATE users SET email = ? WHERE user_id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, email);
+            stmt.setInt(2, userId);
+            stmt.executeUpdate();
+
+        }
+    }
+
+    // ADDRESS HELPERS
+
+    private static void updateUserAddress(Connection conn, int userId, String address) throws SQLException {
+        String sql = "UPDATE users SET address = ? WHERE user_id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, address);
+            stmt.setInt(2, userId);
+            stmt.executeUpdate();
         }
     }
 
@@ -220,6 +361,18 @@ public class UserOps {
             stmt.setString(3, card.cardholderName);
             stmt.setInt(4, card.expiryMonth);
             stmt.setInt(5, card.expiryYear);
+            stmt.executeUpdate();
+        }
+    }
+
+    private static void updateCreditCard(Connection conn, int userId, CreditCardInfo card) throws SQLException {
+        String sql = "UPDATE credit_card SET card_number = ?, cardholder_name = ?, expiry_month = ?, expiry_year = ? " + "WHERE customer_id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, card.cardNumber);
+            stmt.setString(2, card.cardholderName);
+            stmt.setInt(3, card.expiryMonth);
+            stmt.setInt(4, card.expiryYear);
+            stmt.setInt(5, userId);
             stmt.executeUpdate();
         }
     }
