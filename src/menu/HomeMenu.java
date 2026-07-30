@@ -6,10 +6,11 @@ import OrganizerMenu.OrganizerMenu;
 import OrganizerToolkitMenu.OrganizerToolkitMenu;
 import ReportsMenu.ReportsMenu;
 import SearchMenu.SearchMenu;
+import session.Session;
 import util.ConsoleUtil;
 
 public class HomeMenu {
-    public static void listMenu(Connection conn) {
+    public static boolean listMenu(Connection conn, Session session) {
         Scanner scanner = new Scanner(System.in);
         boolean running = true;
         while (running) {
@@ -18,7 +19,12 @@ public class HomeMenu {
             ConsoleUtil.clear();
             try {
                 switch (choice) {
-                    case "1" -> AccountMenu.listMenu(conn, scanner);
+                    case "1" -> {
+                        boolean deletedSelf = AccountMenu.listMenu(conn, scanner, session);
+                        if (deletedSelf) {
+                            return true;
+                        }
+                    }
                     case "2" -> CustomerMenu.listMenu(conn, scanner);
                     case "3" -> OrganizerMenu.listMenu(conn, scanner);
                     case "4" -> SearchMenu.listMenu(conn, scanner);
@@ -33,6 +39,7 @@ public class HomeMenu {
         }
         ConsoleUtil.clear();
         System.out.println("Thank you for using MyTix. We hope to see you again soon!");
+        return false;
     }
 
     private static void printMenu() {
@@ -47,6 +54,6 @@ public class HomeMenu {
             6) Organizer Toolkit
             0) Exit
             ================
-            >\s""");
+            > """);
     }
 }

@@ -37,6 +37,6 @@ public class ReportsMenu {
             9) R9
             0) Go Back
             =======================
-            >\s""");
+            > """);
     }
 }

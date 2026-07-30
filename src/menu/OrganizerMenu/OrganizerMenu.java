@@ -44,6 +44,6 @@ public class OrganizerMenu {
             9) Cancel a Performance
             0) Go Back
             =======================
-            >\s""");
+            > """);
     }
 }
