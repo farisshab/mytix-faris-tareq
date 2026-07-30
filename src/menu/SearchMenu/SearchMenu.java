@@ -38,7 +38,7 @@ public class SearchMenu {
             8) List venues (temporary)
             0) Go Back
             =======================
-            >\s""");
+            > """);
     }
 
     public static void listVenues(Connection conn) throws SQLException {

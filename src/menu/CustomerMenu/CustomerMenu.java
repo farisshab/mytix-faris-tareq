@@ -38,6 +38,6 @@ public class CustomerMenu {
             6) Submit a Review
             0) Go Back
             =======================
-            >\s""");
+            > """);
     }
 }
