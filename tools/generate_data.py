@@ -241,6 +241,9 @@ CUSTOMERS = []         # customer user_ids
 VENUES_BUILT = []      # per-venue layout: sections, rows, seat ids
 EVENTS_BUILT = []      # per-event info: id, genre, kind, artist ids
 PERFORMANCES_BUILT = []  # per-perf info: id, venue, days offset, tier prices
+CUSTOMER_CARD = {}       # customer user_id -> (card_number, name, "MM/YYYY") snapshot
+TICKETS_BUILT = []       # per-ticket info for resale / cancellation / reviews
+LOCKED_PERFS = set()     # performance_ids whose availability is planted (leave alone)
 
 
 def _row_names(n):
@@ -330,11 +333,11 @@ def build_users():
     for _ in range(NUM_CUSTOMERS):
         uid, name = make_user("CUSTOMER")
         CUSTOMERS.append(uid)
-        add("credit_card", customer_id=uid,
-            card_number="".join(str(random.randint(0, 9)) for _ in range(16)),
-            cardholder_name=name,
-            expiry_month=random.randint(1, 12),
-            expiry_year=random.randint(2027, 2032))
+        number = "".join(str(random.randint(0, 9)) for _ in range(16))
+        month, year = random.randint(1, 12), random.randint(2027, 2032)
+        add("credit_card", customer_id=uid, card_number=number, cardholder_name=name,
+            expiry_month=month, expiry_year=year)
+        CUSTOMER_CARD[uid] = (number, name, f"{month:02d}/{year}")
 
 
 def build_artists():
@@ -467,24 +470,170 @@ def build_performances():
 
 
 def build_orders_tickets():
-    """orders + ticket + seat_hold(SOLD) + ticket_ownership(PURCHASE).
+    """orders + ticket + seat_hold(SOLD) + ticket_ownership(PURCHASE). Spreads
+    light sales across many shows, then plants the sold-out and under-25% past
+    shows (across cities), an upcoming show that keeps a consecutive open row, a
+    non-consecutive row and GA capacity, and a near-term show with a few sales."""
 
-    Keep an in-memory set of taken (performance, seat) so you never double-sell.
-    face_value = the tier price of the seat's section for that performance.
+    taken = set() # (performance_id, seat_id) already sold
+    ga_sold = {} # (performance_id, section_id) -> GA count sold
+    count = {"orders": 0, "tickets": 0}
 
-    Must guarantee:
-      - >= NUM_ORDERS orders and >= MIN_TICKETS tickets, spread past + future
-      - several customers with 2+ orders in the past year, in more than one city
-      - among PAST performances: some sold out, some under 25% sold
-      - >= 1 upcoming performance more than 7 days out that still has: a row with
-        4+ consecutive open seats, a row where only non-consecutive seats remain,
-        and leftover GA capacity
-      - >= 1 upcoming performance fewer than 7 days out with some sold tickets
-      - at least one upcoming tier with zero sales AND one with sales (for the
-        price-change demo and its refusal)
-    """
-    # TODO
-    raise NotImplementedError
+    def order_days(perf):
+        # placed in the past, before the show
+        return perf["days"] - random.randint(1, 30) if perf["is_past"] else -random.randint(1, 90)
+
+    def place_order(customer_id, perf, specs, when=None):
+        if not specs:
+            return
+        number, name, exp = CUSTOMER_CARD[customer_id]
+        od = order_days(perf) if when is None else when
+        oid = add("orders", customer_id=customer_id, performance_id=perf["performance_id"],
+                  order_datetime=Rel(days=od), pay_card_number=number,
+                  pay_cardholder=name, pay_expiry=exp)
+        count["orders"] += 1
+        for spec in specs:
+            section_id = spec[1]
+            seat_id = spec[2] if spec[0] == "R" else None
+            fv = perf["price_by_section"][section_id]
+            tid = add("ticket", order_id=oid, seat_id=seat_id,
+                      ga_section_id=(None if seat_id else section_id),
+                      face_value=fv, status="ACTIVE", cancelled_at=None, cancel_type=None)
+            if seat_id is not None:
+                add("seat_hold", performance_id=perf["performance_id"], seat_id=seat_id,
+                    hold_type="SOLD", ticket_id=tid)
+                taken.add((perf["performance_id"], seat_id))
+            else:
+                key = (perf["performance_id"], section_id)
+                ga_sold[key] = ga_sold.get(key, 0) + 1
+            add("ticket_ownership", ticket_id=tid, owner_id=customer_id,
+                acquired_at=Rel(days=od), acquired_via="PURCHASE")
+            TICKETS_BUILT.append({
+                "ticket_id": tid, "performance_id": perf["performance_id"],
+                "event_id": perf["event_id"], "is_past": perf["is_past"], "days": perf["days"],
+                "section_id": section_id, "seat_id": seat_id, "face_value": fv,
+                "owner_id": customer_id, "city": perf["venue"]["city"],
+            })
+        count["tickets"] += len(specs)
+
+    def reserved_open(perf, only_section=None):
+        pid = perf["performance_id"]
+        out = []
+        for sec in perf["venue"]["sections"]:
+            if sec["type"] != "RESERVED" or (only_section and sec["section_id"] != only_section):
+                continue
+            for row in sec["rows"]:
+                out += [(sec["section_id"], sid) for sid in row["seats"] if (pid, sid) not in taken]
+        return out
+
+    def ga_secs(perf):
+        return [s for s in perf["venue"]["sections"] if s["type"] == "GA"]
+
+    def sell_specs(perf, specs):
+        random.shuffle(specs)
+        i = 0
+        while i < len(specs):
+            n = min(random.randint(1, 4), len(specs) - i)
+            place_order(random.choice(CUSTOMERS), perf, specs[i:i + n])
+            i += n
+
+    def sell_fraction(perf, frac):
+        seats = reserved_open(perf)
+        random.shuffle(seats)
+        specs = [("R", sid, seat) for sid, seat in seats[:int(len(seats) * frac)]]
+        for sec in ga_secs(perf):
+            specs += [("GA", sec["section_id"])] * int(sec["ga_capacity"] * frac)
+        sell_specs(perf, specs)
+
+    def sellable(perf):
+        r = sum(len(row["seats"]) for sec in perf["venue"]["sections"]
+                if sec["type"] == "RESERVED" for row in sec["rows"])
+        g = sum(sec["ga_capacity"] for sec in perf["venue"]["sections"] if sec["type"] == "GA")
+        return r + g
+
+    past = [p for p in PERFORMANCES_BUILT if p["is_past"]]
+    upcoming = [p for p in PERFORMANCES_BUILT if not p["is_past"]]
+
+    # pick the scenario shows first, spread across cities, so the light pass avoids them
+    past_by_city = {}
+    for p in past:
+        past_by_city.setdefault(p["venue"]["city"], []).append(p)
+    cities = list(past_by_city)
+
+    soldout, low, used = [], [], set()
+    for city in cities[:2]:
+        perf = min(past_by_city[city], key=sellable)
+        soldout.append(perf); used.add(perf["performance_id"])
+    for city in cities:
+        if len(low) >= 3:
+            break
+        cands = [p for p in past_by_city[city] if p["performance_id"] not in used]
+        if cands:
+            perf = min(cands, key=sellable)
+            low.append(perf); used.add(perf["performance_id"])
+
+    demo = next((p for p in upcoming if p["days"] > 7
+                 and any(s["type"] == "GA" for s in p["venue"]["sections"])
+                 and any(s["type"] == "RESERVED" for s in p["venue"]["sections"])), None)
+    near = next((p for p in upcoming if 0 < p["days"] < 7), None)
+    scenario = {p["performance_id"] for p in soldout + low}
+    scenario |= {p["performance_id"] for p in (demo, near) if p}
+
+    # light pass: a few small orders across the other shows, for report breadth
+    for perf in past + upcoming:
+        if perf["performance_id"] in scenario:
+            continue
+        for _ in range(random.randint(0, 2)):
+            seats = reserved_open(perf)
+            if seats:
+                place_order(random.choice(CUSTOMERS), perf,
+                            [("R", sid, seat) for sid, seat in seats[:random.randint(1, 3)]])
+
+    # sold-out and under-25% past shows, leave the latter locked so nothing tops them up
+    for perf in soldout:
+        sell_fraction(perf, 1.0)
+    for perf in low:
+        sell_fraction(perf, 0.15)
+        LOCKED_PERFS.add(perf["performance_id"])
+
+    # upcoming availability demo: sell every other seat in one row, leaving that
+    # row non-consecutive, every other row fully open, and the GA section fully untouched
+    if demo:
+        sec = next(s for s in demo["venue"]["sections"] if s["type"] == "RESERVED")
+        row = sec["rows"][0]
+        sell_specs(demo, [("R", sec["section_id"], sid)
+                          for i, sid in enumerate(row["seats"]) if i % 2 == 0])
+        LOCKED_PERFS.add(demo["performance_id"])
+
+    # near-term (<7 days) upcoming show with a handful of sales
+    if near:
+        sell_specs(near, [("R", sid, seat) for sid, seat in reserved_open(near)[:6]])
+        LOCKED_PERFS.add(near["performance_id"])
+
+    # several repeat buyers: 2 orders each in two different cities, within the year
+    by_city = {}
+    for p in upcoming:
+        if p["performance_id"] not in LOCKED_PERFS:
+            by_city.setdefault(p["venue"]["city"], []).append(p)
+    upc_cities = [c for c in by_city if by_city[c]]
+    for cust in random.sample(CUSTOMERS, 10):
+        for city in random.sample(upc_cities, min(2, len(upc_cities))):
+            perf = random.choice(by_city[city])
+            seats = reserved_open(perf)
+            if seats:
+                place_order(cust, perf, [("R", sid, seat) for sid, seat in seats[:random.randint(1, 2)]],
+                            when=-random.randint(1, 300))
+
+    # safety top-up to clear the minimums, still avoiding the planted shows
+    pool = [p for p in past + upcoming if p["performance_id"] not in LOCKED_PERFS]
+    while pool and (count["orders"] < NUM_ORDERS or count["tickets"] < MIN_TICKETS):
+        perf = random.choice(pool)
+        seats = reserved_open(perf)
+        if seats:
+            place_order(random.choice(CUSTOMERS), perf,
+                        [("R", sid, seat) for sid, seat in seats[:random.randint(1, 4)]])
+        else:
+            pool = [p for p in pool if p["performance_id"] != perf["performance_id"]]
 
 
 def plant_blocks():
