@@ -240,6 +240,7 @@ ORGANIZERS = []        # organizer user_ids
 CUSTOMERS = []         # customer user_ids
 VENUES_BUILT = []      # per-venue layout: sections, rows, seat ids
 EVENTS_BUILT = []      # per-event info: id, genre, kind, artist ids
+PERFORMANCES_BUILT = []  # per-perf info: id, venue, days offset, tier prices
 
 
 def _row_names(n):
@@ -381,18 +382,88 @@ def build_events():
 
 
 def build_performances():
-    """performance + price_tier + performance_section_tier.
+    """performance + price_tier + performance_section_tier. Plants a tour, a
+    theatre run, and a same-venue pair with different section->tier maps, then
+    fills the rest so we clear 60+ across past and upcoming dates."""
 
-    Must guarantee:
-      - >= 60 performances, a mix of past and upcoming (use Rel for datetimes)
-      - one touring event (same event at several venues)
-      - one theatre run (one event, many performances at one venue)
-      - >= 1 venue hosting two performances with different section->tier maps and
-        different prices
-      - every performance has >= 2 price tiers, and every section assigned a tier
-    """
-    # TODO
-    raise NotImplementedError
+    def tier_prices(n_tiers, base):
+        if n_tiers == 2:
+            return [base, round(base * 0.6, 2)]
+        return [base, round(base * 0.66, 2), round(base * 0.42, 2)]
+
+    def base_price(kind):
+        return {
+            "arena": random.choice([150, 180, 200]),
+            "stadium": random.choice([120, 150, 175]),
+            "theatre": random.choice([90, 110, 130]),
+            "club": random.choice([60, 75, 90]),
+        }[kind]
+
+    def venue_for(event):
+        if event["kind"] == "sports":
+            pool = [v for v in VENUES_BUILT if v["kind"] == "arena"]
+        elif event["kind"] == "theatre":
+            pool = [v for v in VENUES_BUILT if v["kind"] == "theatre"]
+        else:
+            pool = [v for v in VENUES_BUILT if v["kind"] in ("arena", "stadium", "club")]
+        return random.choice(pool)
+
+    def make_perf(event_id, vinfo, days, base, n_tiers, assign="best_first"):
+        pid = add("performance", event_id=event_id, venue_id=vinfo["venue_id"],
+                  performance_datetime=Rel(days=days), status="SCHEDULED", cancelled_at=None)
+        tiers = []
+        for i, price in enumerate(tier_prices(n_tiers, base), start=1):
+            tid = add("price_tier", performance_id=pid, tier_code=f"P{i}", price=price)
+            tiers.append((tid, f"P{i}", price))
+        sections = vinfo["sections"]
+        price_by_section = {}
+        for i, sec in enumerate(sections):
+            pos = len(sections) - 1 - i if assign == "reversed" else i
+            ti = min(pos * n_tiers // max(len(sections), 1), n_tiers - 1)
+            tid, _code, price = tiers[ti]
+            add("performance_section_tier", performance_id=pid,
+                section_id=sec["section_id"], tier_id=tid)
+            price_by_section[sec["section_id"]] = price
+        PERFORMANCES_BUILT.append({
+            "performance_id": pid, "event_id": event_id, "venue": vinfo,
+            "days": days, "is_past": days < 0,
+            "price_by_section": price_by_section, "tiers": tiers,
+        })
+        return pid
+
+    concerts = [e for e in EVENTS_BUILT if e["kind"] == "concert"]
+    theatres = [e for e in EVENTS_BUILT if e["kind"] == "theatre"]
+    theatre_venues = [v for v in VENUES_BUILT if v["kind"] == "theatre"]
+    arenas = [v for v in VENUES_BUILT if v["kind"] == "arena"]
+    stadiums = [v for v in VENUES_BUILT if v["kind"] == "stadium"]
+
+    # 1) a tour: one concert at several venues, all upcoming
+    tour = concerts[0]
+    for i, vinfo in enumerate(random.sample(arenas + stadiums, 4)):
+        make_perf(tour["event_id"], vinfo, days=10 + i * 6, base=base_price(vinfo["kind"]), n_tiers=3)
+
+    # 2) a theatre run: one event, many nights at one theatre, past and upcoming
+    run = theatres[0]
+    run_venue = theatre_venues[0]
+    for i in range(12):
+        make_perf(run["event_id"], run_venue, days=-70 + i * 12, base=110, n_tiers=3)
+
+    # 3) same venue, two performances with different section->tier maps and prices
+    pair_event = concerts[1]
+    pair_venue = arenas[0]
+    make_perf(pair_event["event_id"], pair_venue, days=18, base=200, n_tiers=3, assign="best_first")
+    make_perf(pair_event["event_id"], pair_venue, days=26, base=130, n_tiers=3, assign="reversed")
+
+    # 4) one upcoming performance fewer than 7 days out (near-term scenario)
+    make_perf(concerts[2]["event_id"], venue_for(concerts[2]), days=3, base=base_price("arena"), n_tiers=2)
+
+    # 5) fill the rest to 60+, mixing past and upcoming (skipping the -7..7 window)
+    while len(PERFORMANCES_BUILT) < 64:
+        e = random.choice(EVENTS_BUILT)
+        vinfo = venue_for(e)
+        days = random.choice([random.randint(-330, -8), random.randint(8, 300)])
+        make_perf(e["event_id"], vinfo, days=days, base=base_price(vinfo["kind"]),
+                  n_tiers=random.choice([2, 3]))
 
 
 def build_orders_tickets():
