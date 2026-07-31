@@ -1,0 +1,9 @@
+genre_id,segment_id,genre_name
+1,1,Rock
+2,1,Pop
+3,1,Hip-Hop
+4,1,Country
+5,2,Musical
+6,2,Play
+7,3,Basketball
+8,3,Hockey

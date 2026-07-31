@@ -1,0 +1,9 @@
+venue_id,name,latitude,longitude,address,postal_code,city,country
+1,Scotiabank Arena,43.6435,-79.3791,40 Bay St,M5J 2X2,Toronto,Canada
+2,Rogers Centre,43.6414,-79.3894,1 Blue Jays Way,M5V 1J1,Toronto,Canada
+3,Meridian Hall,43.6469,-79.3762,1 Front St E,M5E 1B2,Toronto,Canada
+4,Massey Hall,43.6544,-79.3789,178 Victoria St,M5B 1T7,Toronto,Canada
+5,Bell Centre,45.4961,-73.5693,1909 Av des Canadiens,H4B 5G0,Montreal,Canada
+6,Madison Square Garden,40.7505,-73.9934,4 Pennsylvania Plaza,10001,New York,USA
+7,Radio City Music Hall,40.7599,-73.9799,1260 6th Ave,10020,New York,USA
+8,TD Garden,42.3662,-71.0621,100 Legends Way,02114,Boston,USA
