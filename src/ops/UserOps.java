@@ -13,6 +13,7 @@ import java.util.Scanner;
 
 
 import session.Session;
+import util.InputUtil;
 
 public class UserOps {
     private static final int MINIMUM_AGE = 18;
@@ -140,12 +141,13 @@ public class UserOps {
                 System.out.printf("Email:          %s%n", rs.getString("email"));
                 System.out.printf("Date of birth:  %s%n", rs.getString("date_of_birth"));
                 System.out.printf("Role:           %s%n", rs.getString("role"));
+                System.out.println("===============================");
             }
         }
     }
 
     public static void viewCreditCardInfo(Connection conn, Session session) throws SQLException {
-        if (!"CUSTOMER".equals(session.role())) {
+        if (!session.isCustomer()) {
             System.out.println("Only customer accounts have payment info to view.");
             return;
         }
@@ -209,9 +211,7 @@ public class UserOps {
     public static void updateCreditCardInfo(Connection conn, Scanner scanner, Session session) throws SQLException {
         int userId = session.userId();
 
-        String role = session.role();
-
-        if (!"CUSTOMER".equals(role)) {
+        if (!session.isCustomer()) {
             System.out.println("Only customer accounts have payment info to update.");
             return;
         }
@@ -244,17 +244,6 @@ public class UserOps {
             case "2" -> "ORGANIZER";
             default -> null;
         };
-    }
-
-    private static Integer promptInt(Scanner scanner, String prompt) {
-        System.out.print(prompt);
-        String input = scanner.nextLine().trim();
-        try {
-            return Integer.parseInt(input);
-        } catch (NumberFormatException e) {
-            System.out.printf("\"%s\" is not a valid integer.%n", input);
-            return null;
-        }
     }
 
     // EMAIL HELPERS
@@ -329,7 +318,7 @@ public class UserOps {
         System.out.print("Cardholder name > ");
         String cardholderName = scanner.nextLine().trim();
 
-        Integer month = promptInt(scanner, "Expiry month (1-12) > ");
+        Integer month = InputUtil.promptInt(scanner, "Expiry month (1-12) > ");
         if (month == null) {
             return null;
         }
@@ -338,7 +327,7 @@ public class UserOps {
             return null;
         }
 
-        Integer year = promptInt(scanner, "Expiry year (e.g. 2026) > ");
+        Integer year = InputUtil.promptInt(scanner, "Expiry year (e.g. 2026) > ");
         if (year == null) {
             return null;
         }

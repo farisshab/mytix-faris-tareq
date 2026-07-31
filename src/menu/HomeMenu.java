@@ -25,8 +25,20 @@ public class HomeMenu {
                             return true;
                         }
                     }
-                    case "2" -> CustomerMenu.listMenu(conn, scanner);
-                    case "3" -> OrganizerMenu.listMenu(conn, scanner);
+                    case "2" ->  {
+                        if (session.isOrganizer()) {
+                            System.out.println("This option is unavailable for organizers.");
+                        } else {
+                            CustomerMenu.listMenu(conn, scanner, session);
+                        }
+                    }
+                    case "3" -> {
+                        if (session.isCustomer()) {
+                            System.out.println("This option is unavailable for customers.");
+                        } else {
+                            OrganizerMenu.listMenu(conn, scanner);
+                        }
+                    }
                     case "4" -> SearchMenu.listMenu(conn, scanner);
                     case "5" -> ReportsMenu.listMenu(conn, scanner);
                     case "6" -> OrganizerToolkitMenu.listMenu(conn, scanner);
