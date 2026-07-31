@@ -244,6 +244,7 @@ PERFORMANCES_BUILT = []  # per-perf info: id, venue, days offset, tier prices
 CUSTOMER_CARD = {}       # customer user_id -> (card_number, name, "MM/YYYY") snapshot
 TICKETS_BUILT = []       # per-ticket info for resale / cancellation / reviews
 LOCKED_PERFS = set()     # performance_ids whose availability is planted (leave alone)
+SCALPERS = []            # customer_ids planted to buy 10+ tickets (for the resale report)
 
 
 def _row_names(n):
@@ -534,7 +535,7 @@ def build_orders_tickets():
         i = 0
         while i < len(specs):
             n = min(random.randint(1, 4), len(specs) - i)
-            place_order(random.choice(CUSTOMERS), perf, specs[i:i + n])
+            place_order(random.choice(buyers), perf, specs[i:i + n])
             i += n
 
     def sell_fraction(perf, frac):
@@ -553,6 +554,11 @@ def build_orders_tickets():
 
     past = [p for p in PERFORMANCES_BUILT if p["is_past"]]
     upcoming = [p for p in PERFORMANCES_BUILT if not p["is_past"]]
+
+    # the two scalpers only ever buy their planted tickets, so keep them out of the
+    # random passes; everyone else is a normal buyer
+    SCALPERS[:] = random.sample(CUSTOMERS, 2)
+    buyers = [c for c in CUSTOMERS if c not in set(SCALPERS)]
 
     # pick the scenario shows first, spread across cities, so the light pass avoids them
     past_by_city = {}
@@ -586,12 +592,13 @@ def build_orders_tickets():
         for _ in range(random.randint(0, 2)):
             seats = reserved_open(perf)
             if seats:
-                place_order(random.choice(CUSTOMERS), perf,
+                place_order(random.choice(buyers), perf,
                             [("R", sid, seat) for sid, seat in seats[:random.randint(1, 3)]])
 
     # sold-out and under-25% past shows, leave the latter locked so nothing tops them up
     for perf in soldout:
         sell_fraction(perf, 1.0)
+        LOCKED_PERFS.add(perf["performance_id"])
     for perf in low:
         sell_fraction(perf, 0.15)
         LOCKED_PERFS.add(perf["performance_id"])
@@ -616,7 +623,7 @@ def build_orders_tickets():
         if p["performance_id"] not in LOCKED_PERFS:
             by_city.setdefault(p["venue"]["city"], []).append(p)
     upc_cities = [c for c in by_city if by_city[c]]
-    for cust in random.sample(CUSTOMERS, 10):
+    for cust in random.sample(buyers, 10):
         for city in random.sample(upc_cities, min(2, len(upc_cities))):
             perf = random.choice(by_city[city])
             seats = reserved_open(perf)
@@ -624,66 +631,207 @@ def build_orders_tickets():
                 place_order(cust, perf, [("R", sid, seat) for sid, seat in seats[:random.randint(1, 2)]],
                             when=-random.randint(1, 300))
 
+    # the two planted scalpers buy 12+ upcoming tickets each (and nothing else)
+    open_upcoming = [p for p in upcoming if p["performance_id"] not in LOCKED_PERFS]
+    for cust in SCALPERS:
+        bought = 0
+        for perf in random.sample(open_upcoming, len(open_upcoming)):
+            seats = reserved_open(perf)
+            if seats:
+                n = min(random.randint(2, 4), len(seats))
+                place_order(cust, perf, [("R", sid, seat) for sid, seat in seats[:n]],
+                            when=-random.randint(1, 200))
+                bought += n
+            if bought >= 12:
+                break
+
     # safety top-up to clear the minimums, still avoiding the planted shows
     pool = [p for p in past + upcoming if p["performance_id"] not in LOCKED_PERFS]
     while pool and (count["orders"] < NUM_ORDERS or count["tickets"] < MIN_TICKETS):
         perf = random.choice(pool)
         seats = reserved_open(perf)
         if seats:
-            place_order(random.choice(CUSTOMERS), perf,
+            place_order(random.choice(buyers), perf,
                         [("R", sid, seat) for sid, seat in seats[:random.randint(1, 4)]])
         else:
             pool = [p for p in pool if p["performance_id"] != perf["performance_id"]]
 
 
 def plant_blocks():
-    """seat_hold(BLOCKED). Block some available reserved seats in a few
-    performances so Q6 and the blocking ops have data. Never block a sold seat."""
-    # TODO
-    raise NotImplementedError
+    """seat_hold(BLOCKED). Blocks a handful of available reserved seats in a few
+    non-scenario shows so Q6 and the block/unblock ops have data. Never blocks a
+    sold seat (the shared primary key on seat_hold makes that impossible anyway)."""
+    held = {(r[0], r[1]) for r in DATA["seat_hold"]}
+    candidates = [p for p in PERFORMANCES_BUILT if p["performance_id"] not in LOCKED_PERFS]
+    for perf in random.sample(candidates, min(5, len(candidates))):
+        pid = perf["performance_id"]
+        free = [sid for sec in perf["venue"]["sections"] if sec["type"] == "RESERVED"
+                for row in sec["rows"] for sid in row["seats"] if (pid, sid) not in held]
+        random.shuffle(free)
+        for sid in free[:random.randint(6, 12)]:
+            add("seat_hold", performance_id=pid, seat_id=sid, hold_type="BLOCKED", ticket_id=None)
+            held.add((pid, sid))
 
 
 def plant_cancellations():
-    """Customer and organizer cancellations.
+    """Customer and organizer cancellations. Marks tickets CANCELLED and frees
+    their seat_hold rows; cancels two past-year performances outright."""
+    ti = COLUMNS["ticket"].index
+    pi = COLUMNS["performance"].index
+    ticket_row = {r[0]: r for r in DATA["ticket"]}
+    perf_row = {r[0]: r for r in DATA["performance"]}
 
-    Must guarantee:
-      - several customer-cancelled tickets (status CANCELLED, cancel_type CUSTOMER),
-        freeing their seat_hold rows
-      - >= 2 past-year performances cancelled by their organizer (performance
-        CANCELLED, its tickets cancel_type PERFORMANCE, seat_holds freed)
-    """
-    # TODO
-    raise NotImplementedError
+    def free_seat(pid, seat_id):
+        for i, r in enumerate(DATA["seat_hold"]):
+            if r[0] == pid and r[1] == seat_id:
+                DATA["seat_hold"].pop(i)
+                return
+
+    def cancel_ticket(e, ctype, when_days):
+        row = ticket_row[e["ticket_id"]]
+        row[ti("status")] = "CANCELLED"
+        row[ti("cancelled_at")] = Rel(days=when_days)
+        row[ti("cancel_type")] = ctype
+        if e["seat_id"] is not None:
+            free_seat(e["performance_id"], e["seat_id"])
+        e["active"] = False
+
+    tickets_by_perf = {}
+    for e in TICKETS_BUILT:
+        tickets_by_perf.setdefault(e["performance_id"], []).append(e)
+
+    protected = set(LOCKED_PERFS)
+
+    # organizer cancels two past-year performances (and all their tickets)
+    org_targets = [p for p in PERFORMANCES_BUILT if p["is_past"] and p["days"] >= -365
+                   and p["performance_id"] not in protected and tickets_by_perf.get(p["performance_id"])]
+    for perf in random.sample(org_targets, min(2, len(org_targets))):
+        pid = perf["performance_id"]
+        perf_row[pid][pi("status")] = "CANCELLED"
+        perf_row[pid][pi("cancelled_at")] = Rel(days=perf["days"] - 2)
+        for e in tickets_by_perf[pid]:
+            if e.get("active", True):
+                cancel_ticket(e, "PERFORMANCE", perf["days"] - 2)
+        DATA["seat_hold"][:] = [r for r in DATA["seat_hold"] if r[0] != pid]  # free leftover holds
+        protected.add(pid)
+
+    # a spread of customers each cancel one ticket, 7+ days before their show
+    cancellable = {}
+    for e in TICKETS_BUILT:
+        if e.get("active", True) and e["performance_id"] not in protected and (e["is_past"] or e["days"] > 7):
+            cancellable.setdefault(e["owner_id"], []).append(e)
+    for owner in random.sample(list(cancellable), min(15, len(cancellable))):
+        e = cancellable[owner][0]
+        when = e["days"] - 8 if e["is_past"] else -random.randint(1, 5)
+        cancel_ticket(e, "CUSTOMER", when)
 
 
 def build_resale():
-    """listing + ticket_ownership(RESALE).
+    """listing + ticket_ownership(RESALE). Listings in every status, one exactly at
+    the cap, a ticket resold twice, and the planted scalpers listing most of what
+    they bought. Resale is on upcoming shows (you sell before the show)."""
+    cap_pct = {r[0]: float(r[4]) for r in DATA["event"]}   # event_id -> resale_cap_pct
 
-    Must guarantee:
-      - listings in every status: ACTIVE, SOLD, WITHDRAWN
-      - at least one listing priced exactly at the cap
-      - at least one ticket that changed owners twice (a 3-row ownership chain)
-      - >= 2 "scalpers": customers who, in the past year, bought >= 10 tickets and
-        listed more than half of them
-      - a SOLD listing appends a RESALE ownership row and moves the ticket to the
-        buyer; seat_hold is untouched
-    """
-    # TODO
-    raise NotImplementedError
+    def cap_of(e):
+        return round(e["face_value"] * cap_pct[e["event_id"]] / 100, 2)
+
+    def under_cap(e):
+        return min(round(e["face_value"] * random.uniform(1.0, cap_pct[e["event_id"]] / 100), 2), cap_of(e))
+
+    def other_than(owner):
+        c = random.choice(CUSTOMERS)
+        while c == owner:
+            c = random.choice(CUSTOMERS)
+        return c
+
+    def list_ticket(e, status, price, created_days, buyer=None):
+        closed = Rel(days=created_days + random.randint(1, 6)) if status != "ACTIVE" else None
+        add("listing", ticket_id=e["ticket_id"], seller_id=e["owner_id"], list_price=price,
+            status=status, created_at=Rel(days=created_days), closed_at=closed, buyer_id=buyer)
+        if status == "SOLD":
+            add("ticket_ownership", ticket_id=e["ticket_id"], owner_id=buyer,
+                acquired_at=Rel(days=created_days + random.randint(1, 6), hours=random.randint(1, 12)),
+                acquired_via="RESALE")
+            e["owner_id"] = buyer
+
+    upcoming_active = [e for e in TICKETS_BUILT if e.get("active", True) and not e["is_past"]]
+    used = set()
+
+    # scalpers list most of what they bought
+    for cust in SCALPERS:
+        ts = [e for e in upcoming_active if e["owner_id"] == cust]
+        for e in ts[:int(len(ts) * 0.7) + 1]:
+            list_ticket(e, random.choice(["ACTIVE", "WITHDRAWN"]), under_cap(e), -random.randint(1, 40))
+            used.add(e["ticket_id"])
+
+    rest = [e for e in upcoming_active if e["ticket_id"] not in used and e["owner_id"] not in SCALPERS]
+    random.shuffle(rest)
+    ptr = 0
+
+    def take():
+        nonlocal ptr
+        if ptr >= len(rest):
+            return None
+        e = rest[ptr]
+        ptr += 1
+        return e
+
+    for _ in range(5):
+        e = take()
+        if e:
+            list_ticket(e, "WITHDRAWN", under_cap(e), -random.randint(20, 60))
+    for _ in range(8):
+        e = take()
+        if e:
+            list_ticket(e, "ACTIVE", under_cap(e), -random.randint(1, 20))
+    e = take()
+    if e:
+        list_ticket(e, "ACTIVE", cap_of(e), -random.randint(1, 20))        # exactly at the cap
+    for _ in range(6):
+        e = take()
+        if e:
+            list_ticket(e, "SOLD", under_cap(e), -random.randint(15, 50), buyer=other_than(e["owner_id"]))
+
+    # one ticket that changes owners twice (purchase + two resales)
+    tw = take()
+    if tw:
+        list_ticket(tw, "SOLD", under_cap(tw), -45, buyer=other_than(tw["owner_id"]))
+        list_ticket(tw, "SOLD", under_cap(tw), -22, buyer=other_than(tw["owner_id"]))
 
 
 def build_reviews():
-    """review.
+    """review. Attendees (current owner of a non-cancelled ticket for a past show)
+    leave several reviews across 10+ events, at most one per (customer, performance),
+    with multi-sentence comments and 1-5 ratings."""
+    perf_days = {p["performance_id"]: p["days"] for p in PERFORMANCES_BUILT}
+    by_event = {}
+    for e in TICKETS_BUILT:
+        if e["is_past"] and e.get("active", True) and perf_days[e["performance_id"]] >= -365:
+            by_event.setdefault(e["event_id"], set()).add((e["performance_id"], e["owner_id"]))
 
-    Must guarantee:
-      - reviews for >= 10 different events, several each
-      - reviewer is the current owner of a non-cancelled ticket for a PAST
-        performance; at most one review per (customer, performance)
-      - multi-sentence comments (stitch a few REVIEW_SENTENCES together)
-      - ratings 1..5
-    """
-    # TODO
-    raise NotImplementedError
+    made = set()
+    events_done = 0
+    for pairs in by_event.values():
+        if events_done >= 15:
+            break
+        pairs = list(pairs)
+        random.shuffle(pairs)
+        target = random.randint(3, 5)
+        n = 0
+        for pid, cust in pairs:
+            if (cust, pid) in made:
+                continue
+            comment = " ".join(random.sample(REVIEW_SENTENCES, random.randint(2, 3)))
+            created = min(perf_days[pid] + random.randint(1, 20), -1)
+            add("review", customer_id=cust, performance_id=pid,
+                event_rating=random.randint(1, 5), venue_rating=random.randint(1, 5),
+                comment_text=comment, created_at=Rel(days=created))
+            made.add((cust, pid))
+            n += 1
+            if n >= target:
+                break
+        if n:
+            events_done += 1
 
 
 # ---------------------------------------------------------------------------
