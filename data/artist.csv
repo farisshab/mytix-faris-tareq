@@ -1,0 +1,22 @@
+artist_id,artist_name,artist_type
+1,Tame Impala,INDIVIDUAL
+2,Foo Fighters,INDIVIDUAL
+3,Arctic Monkeys,INDIVIDUAL
+4,Justin Bieber,INDIVIDUAL
+5,The Weeknd,INDIVIDUAL
+6,Dua Lipa,INDIVIDUAL
+7,50 Cent,INDIVIDUAL
+8,Drake,INDIVIDUAL
+9,Kendrick Lamar,INDIVIDUAL
+10,Morgan Wallen,INDIVIDUAL
+11,Luke Combs,INDIVIDUAL
+12,Zach Bryan,INDIVIDUAL
+13,Hamilton,INDIVIDUAL
+14,The Lion King,INDIVIDUAL
+15,A Christmas Carol,INDIVIDUAL
+16,Toronto Raptors,TEAM
+17,Boston Celtics,TEAM
+18,New York Knicks,TEAM
+19,Montreal Canadiens,TEAM
+20,Boston Bruins,TEAM
+21,New York Rangers,TEAM

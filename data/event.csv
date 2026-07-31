@@ -1,0 +1,25 @@
+event_id,organizer_id,title,genre_id,resale_cap_pct
+1,1,Arctic Monkeys: World Tour,1,120.0
+2,2,Foo Fighters: Live,1,150.0
+3,3,Foo Fighters: World Tour,1,120.0
+4,4,Dua Lipa: Homecoming Show,2,120.0
+5,5,Dua Lipa: In Concert,2,120.0
+6,6,Justin Bieber: Live,2,120.0
+7,1,Kendrick Lamar: Live,3,120.0
+8,2,Kendrick Lamar: Live,3,120.0
+9,3,Drake: In Concert,3,120.0
+10,4,Zach Bryan: In Concert,4,120.0
+11,5,Zach Bryan: In Concert,4,120.0
+12,6,Luke Combs: Homecoming Show,4,120.0
+13,1,Hamilton,5,120.0
+14,2,The Lion King,5,120.0
+15,3,Hamilton,5,125.0
+16,4,A Christmas Carol,6,120.0
+17,5,A Christmas Carol,6,120.0
+18,6,A Christmas Carol,6,120.0
+19,1,Toronto Raptors vs Boston Celtics,7,120.0
+20,2,Toronto Raptors vs Boston Celtics,7,150.0
+21,3,Toronto Raptors vs Boston Celtics,7,120.0
+22,4,Boston Bruins vs New York Rangers,8,150.0
+23,5,Montreal Canadiens vs Boston Bruins,8,110.0
+24,6,Montreal Canadiens vs New York Rangers,8,120.0

@@ -1,0 +1,28 @@
+section_id,venue_id,section_name,section_type,ga_capacity
+1,1,Floor,RESERVED,
+2,1,Lower Bowl,RESERVED,
+3,1,Upper Bowl,RESERVED,
+4,1,General Admission,GA,500
+5,2,Field Level,RESERVED,
+6,2,100 Level,RESERVED,
+7,2,500 Level,RESERVED,
+8,3,Orchestra,RESERVED,
+9,3,Mezzanine,RESERVED,
+10,3,Balcony,RESERVED,
+11,4,Orchestra,RESERVED,
+12,4,Mezzanine,RESERVED,
+13,4,Balcony,RESERVED,
+14,5,Floor,RESERVED,
+15,5,Lower Bowl,RESERVED,
+16,5,Upper Bowl,RESERVED,
+17,5,General Admission,GA,500
+18,6,Floor,RESERVED,
+19,6,Lower Bowl,RESERVED,
+20,6,Upper Bowl,RESERVED,
+21,6,General Admission,GA,500
+22,7,Floor,GA,400
+23,7,Balcony,RESERVED,
+24,8,Floor,RESERVED,
+25,8,Lower Bowl,RESERVED,
+26,8,Upper Bowl,RESERVED,
+27,8,General Admission,GA,500
