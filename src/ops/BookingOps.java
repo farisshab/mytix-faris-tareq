@@ -8,20 +8,27 @@ import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 import session.Session;
+import util.ConsoleUtil;
 import util.InputUtil;
 
 public class BookingOps {
 
     public static void bookTickets(Connection conn, Scanner scanner, Session session) throws SQLException {
-        if(!session.isCustomer()) {
-            System.out.println("Only customer accounts can book tickets.");
-            return;
-        }
+        // if(!session.isCustomer()) {
+        //     System.out.println("Only customer accounts can book tickets.");
+        //     return;
+        // }
+
+        printUpcomingPerformances(conn);
 
         Integer performanceId = InputUtil.promptInt(scanner, "Performance ID > ");
         if (performanceId == null) {
@@ -43,6 +50,8 @@ public class BookingOps {
             System.out.println("No sections/pricing configured for this performance yet.");
             return;
         }
+
+        ConsoleUtil.clear();
         printSections(sections);
 
         Integer sectionId = InputUtil.promptInt(scanner, "Section ID to book from > ");
@@ -95,7 +104,7 @@ public class BookingOps {
                    "pt.tier_code, pt.price " +
                    "FROM performance_section_tier pst " +
                    "JOIN section s ON pst.section_id = s.section_id " +
-                   "JOIN price_tier pt ON pst.performance_id = pt.performance_id AND pst.tier_id = pt.tier_id" +
+                   "JOIN price_tier pt ON pst.performance_id = pt.performance_id AND pst.tier_id = pt.tier_id " +
                    "WHERE pst.performance_id = ? " +
                    "ORDER BY s.section_name";
         List<SectionTierRow> rows = new ArrayList<>();
@@ -121,9 +130,9 @@ public class BookingOps {
         System.out.println("\n=== Sections & Pricing ===");
         for (SectionTierRow s : sections) {
             if (s.sectionType.equals("GA")) {
-                System.out.printf("[%d] %s (GA) - Tier %s - $%.2f - capacity %d%n", s.sectionId(), s.sectionName(), s.tierCode(), s.price(), s.gaCapacity());
+                System.out.printf("[ID: %d] %s (GA) - Tier %s - $%.2f - capacity %d%n", s.sectionId(), s.sectionName(), s.tierCode(), s.price(), s.gaCapacity());
             } else {
-                System.out.printf("[%d] %s (Reserved) - Tier %s - $%.2f%n", s.sectionId(), s.sectionName(), s.tierCode(), s.price());
+                System.out.printf("[ID: %d] %s (Reserved) - Tier %s - $%.2f%n", s.sectionId(), s.sectionName(), s.tierCode(), s.price());
             }
         }
     }
@@ -195,11 +204,15 @@ public class BookingOps {
     // RESERVED SEAT BOOKING
 
     private static void bookReservedSeats(Connection conn, Scanner scanner, int orderId, int performanceId, int customerId, SectionTierRow section) throws SQLException {
+        ConsoleUtil.clear();
+        printAvailableSeats(conn, section.sectionId(), performanceId);
+        
         Integer quantity = InputUtil.promptInt(scanner, "How many seats? > ");
         if (quantity == null || quantity <= 0) {
             throw new BookingAbortedException("Invalid quantity.");
         }
 
+        System.out.println();
         for (int i = 1; i <= quantity; i++) {
             System.out.printf("--- Seat %d of %d ---%n", i, quantity);
             System.out.print("Row name > ");
@@ -229,6 +242,35 @@ public class BookingOps {
             }
 
             insertOwnership(conn, ticketId, customerId);
+        }
+    }
+
+    private static void printAvailableSeats(Connection conn, int sectionId, int performanceId) throws SQLException {
+        String sql = "SELECT sr.row_name, se.seat_number FROM seat se " +
+                     "JOIN seat_row sr ON se.row_id = sr.row_id " +
+                     "WHERE sr.section_id = ? " +
+                     "AND NOT EXISTS (SELECT 1 FROM seat_hold sh WHERE sh.performance_id = ? AND sh.seat_id = se.seat_id) " +
+                     "ORDER BY sr.row_name, se.seat_number";
+
+        Map<String, List<Integer>> byRow = new LinkedHashMap<>();
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, sectionId);
+            stmt.setInt(2, performanceId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    byRow.computeIfAbsent(rs.getString("row_name"), k -> new ArrayList<>()).add(rs.getInt("seat_number"));
+                }
+            }
+        }
+
+        System.out.println("\n--- Available Seats ---");
+        if (byRow.isEmpty()) {
+            System.out.println("This section has no available seats");
+            return;
+        }
+        for (Map.Entry<String, List<Integer>> entry : byRow.entrySet()) {
+            String seatList = entry.getValue().stream().map(String::valueOf).collect(Collectors.joining(", "));
+            System.out.printf("Row %s: %s%n", entry.getKey(), seatList);
         }
     }
 
@@ -297,6 +339,35 @@ public class BookingOps {
             stmt.executeUpdate();
         }
     }
+
+    private static void printUpcomingPerformances(Connection conn) throws SQLException {
+        String sql = "SELECT p.performance_id, e.title, v.name AS venue_name, v.city, p.performance_datetime " +
+                     "FROM performance p " +
+                     "JOIN event e ON p.event_id = e.event_id " +
+                     "JOIN venue v ON p.venue_id = v.venue_id " +
+                     "WHERE p.status = 'SCHEDULED' AND p.performance_datetime > NOW() " +
+                     "ORDER BY p.performance_datetime";
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:MM");
+
+        System.out.println("\n--- Upcoming Performances ---");
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            boolean any = false;
+            while (rs.next()) {
+                any = true;
+                LocalDateTime dt = rs.getObject("performance_datetime", LocalDateTime.class);
+                System.out.printf("[ID: %d] %s @ %s, %s - %s%n",
+                    rs.getInt("performance_id"),
+                    rs.getString("title"),
+                    rs.getString("venue_name"),
+                    rs.getString("city"),
+                    dt.format(fmt));
+            }
+            if (!any) {
+                System.out.println("No upcoming performances found");
+            }
+        }
+    }
     
     private static String lookupPerformanceStatus(Connection conn, int performanceId) throws SQLException {
         String sql = "SELECT status FROM performance WHERE performance_id = ?";
@@ -342,6 +413,7 @@ public class BookingOps {
             stmt.setString(4, card.cardNumber());
             stmt.setString(5, card.cardholderName());
             stmt.setString(6, payExpiry);
+            stmt.executeUpdate();
             try (ResultSet keys = stmt.getGeneratedKeys()) {
                 keys.next();
                 return keys.getInt(1);
