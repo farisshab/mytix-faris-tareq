@@ -134,3 +134,84 @@ Q1-Q3 (nearby by distance, by postal code, by exact address), which are Faris'. 
 Q4 = our availability core + date range + minimum available, AND-ed with whichever
 location filter he builds. Marked as a coordination point, so I'll reuse his distance
 and postal logic instead of writing my own.
+
+
+## Organizer operations - creating and managing events
+
+The write side of the organizer's world: making events and performances, pricing
+them, blocking seats, and cancelling. Two ideas run through all of them - only the
+event's own organizer may touch it, and each operation either fully happens or not
+at all.
+
+**Decision 12 - who's allowed is checked inside the statement, not before it.**
+Every organizer op has an owner rule: the spec is firm that only the organizer of an
+event can cancel its performances, and the same goes for pricing and blocking. The
+signed-in user (from Faris' login) gives us the acting user_id. Rather than run a
+SELECT to check ownership and then a second statement to do the work, we fold the
+ownership check straight into the UPDATE/DELETE itself, e.g.
+`... WHERE tier_id = ? AND e.organizer_id = ?`. If the user isn't the owner the
+statement simply touches zero rows, and we read that "0 rows" as "not your event."
+This closes the little gap where something could change between the check and the
+action, and it means an op physically cannot alter a row it doesn't own. (Depends on
+the session handing us the current user_id, got to line up with Faris.)
+
+**Decision 13 - one operation, one transaction.**
+The spec keeps saying "all suitable information should be updated," which is really
+asking for all-or-nothing. So each operation is wrapped in a single transaction
+(autocommit off, commit at the end, roll back on any error or refused rule). Most
+ops are one single statement anyway, but these two have to be atomic: pricing and cancelling a performance (its tiers plus every section assignment, and the cascade below). A performance should never be half-priced or half-cancelled.
+
+**Decision 14 - the create-and-price flow, with a completeness check.**
+Building a sellable performance is three operations:
+- create the event (organizer from the session, title, genre, and the resale cap,
+  which lives on the event, not the performance)
+- add a bare performance to it (venue + date)
+- price that performance: define at least two tiers, then assign every section of
+  the venue to one of them
+
+The pricing step is the atomic one, and before it commits we must check two things: at least two tiers exist, and the number of section assignments equals the number of
+sections in the venue. If a section is left unpriced we roll back and say so, because
+a performance with an unpriced section would break booking (there's no tier to read a
+price from). The composite foreign key already guarantees each assignment's tier
+belongs to this performance, so we don't need to recheck that part.
+
+**Decision 15 - updating a tier's price, and when we refuse.**
+An organizer can change a tier's price on a future performance, but only if nothing
+has sold in that tier yet. "Sold in that tier" is really about the tier's sections: a
+tier maps to sections, and a ticket counts if its section is one of them (a reserved
+ticket's section comes from its seat, a GA ticket's from ga_section_id). So the check
+is "is there any active ticket for this performance in a section that belongs to this
+tier." We do the change as one guarded UPDATE; owner check, future performance, and
+NOT EXISTS(a sale in this tier), all in the WHERE, so a sale sneaking in at the last
+second just makes the update match nothing, no race. Since "zero rows changed"
+doesn't say why it was refused, if that happens we run a small read-only follow up to
+work out the reason (past show? not owner? already sold in that tier? etc.) purely so we can give the organizer a clear message.
+
+**Decision 16 - blocking and unblocking a seat.**
+Blocking a seat is just an insert into seat_hold as a BLOCKED row, and the seat_hold
+primary key does the hard part for free: if the seat is already sold or blocked, the
+insert clashes on the key and fails, which is exactly the spec's "you can't block a
+sold seat." We write it as INSERT ... SELECT so the organizer's ownership is checked
+in the same statement (the SELECT only produces a row if they own the event and the
+show is a scheduled, future one). Two outcomes, two messages: a key clash means the
+seat is sold or already blocked; zero rows inserted means it wasn't their event.
+Unblocking is a DELETE scoped to BLOCKED rows only, so you can never "unblock" a sold
+seat (freeing a sold seat only ever happens through a cancellation). Blocking is
+reserved-only, since GA has no seats to block.
+
+**Decision 17 - cancelling a performance, the full cascade.**
+The organizer can cancel a whole performance at any time, and it has to leave everything tidy. One transaction, in order:
+1. Flip the performance to CANCELLED (this UPDATE also carries the owner check and the
+   "not already cancelled" check, so it's the gate for the whole thing; if it touches
+   zero rows we roll back and refuse).
+2. Turn every still-active ticket into CANCELLED with cancel_type PERFORMANCE (tickets
+   a customer already cancelled keep their CUSTOMER reason).
+3. Delete all of the performance's seat_holds, sold and blocked alike, which is the
+   spec's "mark the seats available again."
+4. Withdraw any active resale listings for those tickets, so nobody buys a listing for
+   a ticket that no longer exists.
+
+Refunds are implied; a cancelled ticket is itself the refund record, and the
+cancellation is "recorded" by the performance's status and each ticket's cancel_type.
+Step 4 isn't spelled out in the spec, but a live listing pointing at a cancelled
+ticket is a loose end worth closing.
