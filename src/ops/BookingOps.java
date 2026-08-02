@@ -22,11 +22,11 @@ import util.InputUtil;
 
 public class BookingOps {
 
+    /*
+    NOTE: THE FUNCTIONS IN THIS SECTION ARE ALL RELATED TO BOOKING TICKETS
+     */
+
     public static void bookTickets(Connection conn, Scanner scanner, Session session) throws SQLException {
-        // if(!session.isCustomer()) {
-        //     System.out.println("Only customer accounts can book tickets.");
-        //     return;
-        // }
 
         printUpcomingPerformances(conn);
 
@@ -419,6 +419,168 @@ public class BookingOps {
                 return keys.getInt(1);
             }
         } 
+    }
+
+    /*
+    NOTE: THE FUNCTIONS IN THIS SECTION ARE ALL RELATED TO CANCELLING TICKETS
+     */
+
+    public static void cancelTickets(Connection conn, Scanner scanner, Session session) throws SQLException {
+        // First, create a list of all tickets that CAN be cancelled
+        List<CancellableTicket> tickets = listCancellableTickets(conn, session.userId());
+        if (tickets.isEmpty()) {
+            System.out.println("You currently have no tickets eligible for cancellation.");
+            System.out.println("(For a ticket to be eligible, you must own it, and it must be >= 7 days before the performance.)");
+            return;
+        }
+        printCancellableTickets(tickets);
+
+        Integer ticketId = InputUtil.promptInt(scanner, "\nTicket ID to cancel > ");
+        if (ticketId == null) {
+            return;
+        }
+
+        CancellableTicket chosen = tickets.stream()
+            .filter(t -> t.ticketId() == ticketId)
+            .findFirst()
+            .orElse(null);
+        if (chosen == null) {
+            System.out.println("That ticket isn't eligible for cancellation right now.");
+            return;
+        }
+
+        System.out.printf("Cancel ticket #%d ($%.2f, \"%s\")? This issues a full refund. (Y/N) > ", chosen.ticketId(), chosen.faceValue(), chosen.eventTitle());
+        String confirm = scanner.nextLine().trim();
+        if (!confirm.equalsIgnoreCase("Y")) {
+            System.out.println("Not cancelled.");
+            return;
+        }
+
+        boolean autoCommit = conn.getAutoCommit();
+        try {
+            conn.setAutoCommit(false);
+
+            boolean wasCancelled = markTicketCancelled(conn, chosen.ticketId());
+
+            if (!wasCancelled) {
+                // Someone else already cancelled this ticket (by duplicate/concurrent request)
+                conn.rollback();
+                System.out.println("That ticket was already cancelled. No refund issues.");
+                return;
+            }
+
+            if (chosen.seatId() != null) {
+                // This is a reserved seat
+                // We cancel it by deleting its row in seat_hold
+                // GA tickets have no row in seat_hold
+                releaseSeatHold(conn, chosen.performanceId(), chosen.seatId());
+            }
+
+            conn.commit();
+            System.out.printf("Ticket #%d cancelled. Full refund of $%.2f issued.%n", chosen.ticketId(), chosen.faceValue());
+        } catch (SQLException e) {
+            conn.rollback();
+            System.out.println("Cancellation failed, rolled back: " + e.getMessage());
+        } finally {
+            conn.setAutoCommit(autoCommit);
+        }
+    }
+
+    private record CancellableTicket(int ticketId, Integer seatId, BigDecimal faceValue, int performanceId, String eventTitle, LocalDateTime performanceDatetime, String sectionName, String rowName, Integer seatNumber) {
+        boolean isReserved() {
+            return rowName != null;
+        }
+    }
+
+    private static List<CancellableTicket> listCancellableTickets(Connection conn, int customerId) throws SQLException {
+        /*
+        Checks that:
+            - The "current owner" is the LATEST row in ticket_ownership, sorted by acquired_at for that ticket
+            - or the original PURCHASE if it's never been resold
+            or the latest RESALE row
+        */
+       String sql = "SELECT t.ticket_id, t.seat_id, t.face_value, o.performance_id, e.title, p.performance_datetime, " +
+                    "COALESCE(s_res.section_name, s_ga.section_name) AS section_name, sr.row_name, se.seat_number " +
+                    "FROM ticket t " +
+                    "JOIN orders o ON t.order_id = o.order_id " +
+                    "JOIN performance p ON o.performance_id = p.performance_id " +
+                    "JOIN event e ON p.event_id = e.event_id " +
+                    "JOIN ticket_ownership tow ON tow.ticket_id = t.ticket_id " +
+                    "LEFT JOIN seat se ON t.seat_id = se.seat_id " +
+                    "LEFT JOIN seat_row sr ON se.row_id = sr.row_id " +
+                    "LEFT JOIN section s_res ON sr.section_id = s_res.section_id " +
+                    "LEFT JOIN section s_ga ON t.ga_section_id = s_ga.section_id " +
+                    "WHERE t.status = 'ACTIVE' " +
+                    "AND tow.owner_id = ? " +
+                    "AND tow.acquired_at = (SELECT MAX(tow2.acquired_at) FROM ticket_ownership tow2 WHERE tow2.ticket_id = t.ticket_id) " +
+                    "AND p.performance_datetime >= NOW() + INTERVAL 7 DAY " +
+                    "ORDER BY p.performance_datetime";
+
+        List<CancellableTicket> tickets = new ArrayList<>();
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, customerId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Integer seatId = (Integer) rs.getObject("seat_id");
+                    tickets.add(new CancellableTicket(
+                        rs.getInt("ticket_id"),
+                        seatId,
+                        rs.getBigDecimal("face_value"),
+                        rs.getInt("performance_id"),
+                        rs.getString("title"),
+                        rs.getObject("performance_datetime", LocalDateTime.class),
+                        rs.getString("section_name"),
+                        rs.getString("row_name"),
+                        (Integer) rs.getObject("seat_number")
+                    ));
+                }
+            }
+        }
+        return tickets;
+    }
+
+    private static void printCancellableTickets(List<CancellableTicket> tickets) {
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+        Map<Integer, List<CancellableTicket>> byPerformance = new LinkedHashMap<>();
+        for (CancellableTicket t : tickets) {
+            byPerformance.computeIfAbsent(t.performanceId(), k -> new ArrayList<>()).add(t);
+        }
+
+        System.out.println("--- Your Cancellable Tickets ---");
+        for (List<CancellableTicket> group : byPerformance.values()) {
+            CancellableTicket first = group.get(0);
+            System.out.printf("%n%s @ %s%n", first.eventTitle(), first.performanceDatetime().format(fmt));
+            for (CancellableTicket t : group) {
+                String seatInfo;
+                if (t.isReserved()) {
+                    seatInfo = String.format("%s, Row %s, Seat %d", t.sectionName(), t.rowName(), t.seatNumber());
+                } else {
+                    seatInfo = String.format("%s", t.sectionName());
+                }
+                System.out.printf("   [ID: %d] %s - $%.2f%n", t.ticketId(), seatInfo, t.faceValue());
+            }
+        }
+    }
+
+    private static boolean markTicketCancelled(Connection conn, int ticketId) throws SQLException {
+        // status/cancelled_at/cancel_type must all change together since the schema's CHECK constaint requires all three or none
+        String sql = "UPDATE ticket SET status = 'CANCELLED', cancelled_at = ?, cancel_type = 'CUSTOMER' " +
+                     "WHERE ticket_id = ? AND status = 'ACTIVE'";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, LocalDateTime.now());
+            stmt.setInt(2, ticketId);
+            return stmt.executeUpdate() == 1;
+        }
+    }
+
+    private static void releaseSeatHold(Connection conn, int performanceId, int seatId) throws SQLException {
+        String sql = "DELETE FROM seat_hold WHERE performance_id = ? AND seat_id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, performanceId);
+            stmt.setInt(2, seatId);
+            stmt.executeUpdate();
+        }
     }
 
     private static class BookingAbortedException extends RuntimeException {
