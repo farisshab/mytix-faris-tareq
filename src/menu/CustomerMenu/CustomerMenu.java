@@ -17,7 +17,7 @@ public class CustomerMenu {
             ConsoleUtil.clear();
             switch (choice) {
                 case "1" -> BookingOps.bookTickets(conn, scanner, session);
-                case "2" -> System.out.println("TODO: Cancel Tickets");
+                case "2" -> BookingOps.cancelTickets(conn, scanner, session);
                 case "3" -> System.out.println("TODO: List a Ticket for Resale");
                 case "4" -> System.out.println("TODO: Withdraw a Listing");
                 case "5" -> System.out.println("TODO: Buy a Listing");
