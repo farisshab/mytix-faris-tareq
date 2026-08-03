@@ -80,7 +80,7 @@ public class UserOps {
         if (role.equals("CUSTOMER")) {
             card = promptCreditCardDetails(scanner);
             if (card == null) {
-                System.out.println("Abording account creation...");
+                System.out.println("Aborting account creation...");
                 return;
             }
         }
@@ -236,7 +236,7 @@ public class UserOps {
         System.out.print("""
             Role?
             - (1) Customer
-            - (2) Organizer?
+            - (2) Organizer
             > """);
         String choice = scanner.nextLine().trim();
         return switch (choice) {

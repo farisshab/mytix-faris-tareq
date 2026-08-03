@@ -5,6 +5,7 @@ import java.util.Scanner;
 
 import ops.AuthOps;
 import session.Session;
+import util.ConsoleUtil;
 
 // This acts as an entry point. It will load the DB config, opens one connection for the session, and closes it on exit
 public class Main {
@@ -22,6 +23,7 @@ public class Main {
                 Scanner authScanner = new Scanner(System.in);
                 boolean continueToSignIn = true;
                 while (continueToSignIn) {
+                    ConsoleUtil.clear();
                     Session session = AuthOps.authenticate(conn, authScanner);
 
                     // HomeMenu returns true only when the signed-in user just deleted their own account
