@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Scanner;
 
+import ops.SearchOps;
 import util.ConsoleUtil;
 
 public class SearchMenu {
@@ -16,7 +17,11 @@ public class SearchMenu {
             String choice = scanner.nextLine().trim();
             ConsoleUtil.clear();
             switch (choice) {
-                case "1", "2", "3", "4", "5", "6", "7" -> System.out.println("TODO: Q" + choice);
+                case "1", "2", "3" -> System.out.println("TODO: Q" + choice);
+                case "4" -> SearchOps.q4(conn, scanner);
+                case "5" -> SearchOps.q5(conn, scanner);
+                case "6" -> SearchOps.q6(conn, scanner);
+                case "7" -> SearchOps.q7(conn, scanner);
                 case "8" -> listVenues(conn);
                 case "0" -> back = true;
                 default -> System.out.println("Unrecognized option.");
@@ -28,13 +33,13 @@ public class SearchMenu {
         System.out.print("""
                 
             === Search ===
-            1) Q1
-            2) Q2
-            3) Q3
-            4) Q4
-            5) Q5
-            6) Q6
-            7) Q7
+            1) Performances near a location (Q1)
+            2) Search by postal code (Q2)
+            3) Search by exact address (Q3)
+            4) By date range & availability (Q4)
+            5) Advanced filters (Q5)
+            6) Seat map for a performance (Q6)
+            7) Best available seats (Q7)
             8) List venues (temporary)
             0) Go Back
             =======================
