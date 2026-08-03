@@ -9,6 +9,7 @@ public class InputUtil {
             try {
                 return Integer.parseInt(input);
             } catch (NumberFormatException e) {
+                ConsoleUtil.clear();
                 System.out.printf("\"%s\" is not a valid integer.%n", input);
                 return null;
             }

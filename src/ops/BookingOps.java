@@ -340,7 +340,9 @@ public class BookingOps {
         }
     }
 
-    private static void printUpcomingPerformances(Connection conn) throws SQLException {
+        // The next two functions are package-private so that they can be reused in ResaleOps.java
+
+    static void printUpcomingPerformances(Connection conn) throws SQLException {
         String sql = "SELECT p.performance_id, e.title, v.name AS venue_name, v.city, p.performance_datetime " +
                      "FROM performance p " +
                      "JOIN event e ON p.event_id = e.event_id " +
@@ -369,7 +371,7 @@ public class BookingOps {
         }
     }
     
-    private static String lookupPerformanceStatus(Connection conn, int performanceId) throws SQLException {
+    static String lookupPerformanceStatus(Connection conn, int performanceId) throws SQLException {
         String sql = "SELECT status FROM performance WHERE performance_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, performanceId);
@@ -476,6 +478,10 @@ public class BookingOps {
                 releaseSeatHold(conn, chosen.performanceId(), chosen.seatId());
             }
 
+            // A cancelled ticket cannot remain purchaseable via resale
+            // Close any listing still active for it
+            closeActiveListingForTicket(conn, chosen.ticketId());
+
             conn.commit();
             System.out.printf("Ticket #%d cancelled. Full refund of $%.2f issued.%n", chosen.ticketId(), chosen.faceValue());
         } catch (SQLException e) {
@@ -579,6 +585,15 @@ public class BookingOps {
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, performanceId);
             stmt.setInt(2, seatId);
+            stmt.executeUpdate();
+        }
+    }
+
+    private static void closeActiveListingForTicket(Connection conn, int ticketId) throws SQLException {
+        String sql = "UPDATE listing SET status = 'WITHDRAWN', closed_at = ? WHERE ticket_id = ? AND status = 'ACTIVE'";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, LocalDateTime.now());
+            stmt.setInt(2, ticketId);
             stmt.executeUpdate();
         }
     }
