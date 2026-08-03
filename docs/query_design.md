@@ -161,19 +161,26 @@ asking for all-or-nothing. So each operation is wrapped in a single transaction
 (autocommit off, commit at the end, roll back on any error or refused rule). Most
 ops are one single statement anyway, but these two have to be atomic: pricing and cancelling a performance (its tiers plus every section assignment, and the cascade below). A performance should never be half-priced or half-cancelled.
 
-**Decision 14 - the create-and-price flow, with a completeness check.**
-Building a sellable performance is three operations:
-- create the event (organizer from the session, title, genre, and the resale cap,
-  which lives on the event, not the performance)
-- add a bare performance to it (venue + date)
-- price that performance: define at least two tiers, then assign every section of
-  the venue to one of them
+**Decision 14 - the create-and-price flow, done in incremental steps.**
+Building a sellable performance is a handful of separate operations, one per menu
+item on Faris' organizer menu: create the event (organizer from the session, title,
+genre, and the resale cap, which lives on the event), add a bare performance to it
+(venue + date), define its price tiers, assign its sections to those tiers, and set
+or change the resale cap. Each is its own small operation rather than one big guided
+flow.
 
-The pricing step is the atomic one, and before it commits we must check two things: at least two tiers exist, and the number of section assignments equals the number of
-sections in the venue. If a section is left unpriced we roll back and say so, because
-a performance with an unpriced section would break booking (there's no tier to read a
-price from). The composite foreign key already guarantees each assignment's tier
-belongs to this performance, so we don't need to recheck that part.
+(This is a change from an earlier draft that made pricing one atomic op that rolled
+back unless every section was assigned in a single go. I switched to the
+incremental version because it matches the menu Faris already built and the way the
+spec itself lists the steps, and because a half-priced performance isn't actually
+broken data, it's just a setup still in progress. Booking only ever offers sections
+that have a tier, so an unassigned section simply isn't sellable yet, very manageable.)
+
+To keep that from biting us later, the assign-sections op ends by checking
+completeness and warning if any section still has no tier ("2 sections have no tier
+yet and can't be sold until you assign them") rather than leaving it silent. The
+composite foreign key still guarantees each assignment's tier belongs to this
+performance, so we never recheck that part.
 
 **Decision 15 - updating a tier's price, and when we refuse.**
 An organizer can change a tier's price on a future performance, but only if nothing
