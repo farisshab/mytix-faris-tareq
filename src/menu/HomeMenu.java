@@ -36,7 +36,7 @@ public class HomeMenu {
                         if (session.isCustomer()) {
                             System.out.println("This option is unavailable for customers.");
                         } else {
-                            OrganizerMenu.listMenu(conn, scanner);
+                            OrganizerMenu.listMenu(conn, scanner, session);
                         }
                     }
                     case "4" -> SearchMenu.listMenu(conn, scanner);
