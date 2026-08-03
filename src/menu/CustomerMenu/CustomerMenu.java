@@ -5,6 +5,7 @@ import java.sql.SQLException;
 import java.util.Scanner;
 
 import ops.BookingOps;
+import ops.ResaleOps;
 import session.Session;
 import util.ConsoleUtil;
 
@@ -18,9 +19,9 @@ public class CustomerMenu {
             switch (choice) {
                 case "1" -> BookingOps.bookTickets(conn, scanner, session);
                 case "2" -> BookingOps.cancelTickets(conn, scanner, session);
-                case "3" -> System.out.println("TODO: List a Ticket for Resale");
-                case "4" -> System.out.println("TODO: Withdraw a Listing");
-                case "5" -> System.out.println("TODO: Buy a Listing");
+                case "3" -> ResaleOps.listForResale(conn, scanner, session);
+                case "4" -> ResaleOps.withdrawListing(conn, scanner, session);
+                case "5" -> ResaleOps.buyListing(conn, scanner, session);
                 case "6" -> System.out.println("TODO: Submit a Review");
                 case "0" -> back = true;
                 default -> System.out.println("Unrecognized option.");
