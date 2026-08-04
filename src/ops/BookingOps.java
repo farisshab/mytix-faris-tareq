@@ -26,6 +26,12 @@ public class BookingOps {
     NOTE: THE FUNCTIONS IN THIS SECTION ARE ALL RELATED TO BOOKING TICKETS
      */
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @throws SQLException
+     */
     public static void bookTickets(Connection conn, Scanner scanner, Session session) throws SQLException {
 
         printUpcomingPerformances(conn);
@@ -97,8 +103,23 @@ public class BookingOps {
 
     // SECTION/TIER LISTING
 
+    /**
+     * SectionTierRow
+     * @param sectionId
+     * @param sectionName
+     * @param sectionType
+     * @param tierCode
+     * @param price
+     * @param gaCapacity
+     */
     private record SectionTierRow(int sectionId, String sectionName, String sectionType, String tierCode, BigDecimal price, Integer gaCapacity) {}
 
+    /**
+     * @param conn
+     * @param performanceId
+     * @return
+     * @throws SQLException
+     */
     private static List<SectionTierRow> listSectionsForPerformance(Connection conn, int performanceId) throws SQLException {
         String sql = "SELECT s.section_id, s.section_name, s.section_type, s.ga_capacity, " +
                    "pt.tier_code, pt.price " +
@@ -126,6 +147,9 @@ public class BookingOps {
         return rows;
     }
 
+    /**
+     * @param sections
+     */
     private static void printSections(List<SectionTierRow> sections) {
         System.out.println("\n=== Sections & Pricing ===");
         for (SectionTierRow s : sections) {
@@ -139,6 +163,15 @@ public class BookingOps {
 
     // GENERAL ADMISSION BOOKING
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param orderId
+     * @param performanceId
+     * @param customerId
+     * @param section
+     * @throws SQLException
+     */
     private static void bookGaTickets(Connection conn, Scanner scanner, int orderId, int performanceId, int customerId, SectionTierRow section) throws SQLException {
         Integer quantity = InputUtil.promptInt(scanner, "How many GA tickets? > ");
         if (quantity == null || quantity <= 0) {
@@ -161,6 +194,12 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param sectionId
+     * @return
+     * @throws SQLException
+     */
     private static int lockSectionCapacity(Connection conn, int sectionId) throws SQLException {
         String sql = "SELECT ga_capacity FROM section WHERE section_id = ? FOR UPDATE";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -172,6 +211,13 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param sectionId
+     * @param performanceId
+     * @return
+     * @throws SQLException
+     */
     private static int countSoldGaTickets(Connection conn, int sectionId, int performanceId) throws SQLException {
         String sql = "SELECT COUNT(*) AS sold_count FROM ticket t " +
                      "JOIN orders o ON t.order_id = o.order_id " +
@@ -186,6 +232,14 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param orderId
+     * @param gaSectionId
+     * @param faceValue
+     * @return
+     * @throws SQLException
+     */
     private static int insertGaTicket(Connection conn, int orderId, int gaSectionId, BigDecimal faceValue) throws SQLException {
         String sql = "INSERT INTO ticket (order_id, ga_section_id, face_value, status) VALUES (?, ?, ?, 'ACTIVE')";
         try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -203,6 +257,15 @@ public class BookingOps {
 
     // RESERVED SEAT BOOKING
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param orderId
+     * @param performanceId
+     * @param customerId
+     * @param section
+     * @throws SQLException
+     */
     private static void bookReservedSeats(Connection conn, Scanner scanner, int orderId, int performanceId, int customerId, SectionTierRow section) throws SQLException {
         ConsoleUtil.clear();
         printAvailableSeats(conn, section.sectionId(), performanceId);
@@ -245,6 +308,12 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param sectionId
+     * @param performanceId
+     * @throws SQLException
+     */
     private static void printAvailableSeats(Connection conn, int sectionId, int performanceId) throws SQLException {
         String sql = "SELECT sr.row_name, se.seat_number FROM seat se " +
                      "JOIN seat_row sr ON se.row_id = sr.row_id " +
@@ -274,6 +343,14 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param sectionId
+     * @param rowName
+     * @param seatNumber
+     * @return
+     * @throws SQLException
+     */
     private static Integer lookupSeatId(Connection conn, int sectionId, String rowName, int seatNumber) throws SQLException {
         String sql = "SELECT se.seat_id FROM seat se " +
                      "JOIN seat_row sr ON se.row_id = sr.row_id " +
@@ -291,6 +368,13 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param performanceId
+     * @param seatId
+     * @return
+     * @throws SQLException
+     */
     private static boolean isSeatTaken(Connection conn, int performanceId, int seatId) throws SQLException {
         String sql = "SELECT 1 FROM seat_hold WHERE performance_id = ? AND seat_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -302,6 +386,14 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param orderId
+     * @param seatId
+     * @param faceValue
+     * @return
+     * @throws SQLException
+     */
     private static int insertReservedTicket(Connection conn, int orderId, int seatId, BigDecimal faceValue) throws SQLException {
         String sql = "INSERT INTO ticket (order_id, seat_id, face_value, status) VALUES (?, ?, ?, 'ACTIVE')";
         try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -316,6 +408,13 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param performanceId
+     * @param seatId
+     * @param ticketId
+     * @throws SQLException
+     */
     private static void insertSeatHold(Connection conn, int performanceId, int seatId, int ticketId) throws SQLException {
         String sql = "INSERT INTO seat_hold (performance_id, seat_id, hold_type, ticket_id) VALUES (?, ?, 'SOLD', ?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -328,6 +427,12 @@ public class BookingOps {
 
     // ADDITIONAL HELPERS
 
+    /**
+     * @param conn
+     * @param ticketId
+     * @param ownerId
+     * @throws SQLException
+     */
     private static void insertOwnership(Connection conn, int ticketId, int ownerId) throws SQLException {
         // The first ownership row is the original purchase
         // Future rows will represent resales
@@ -342,6 +447,10 @@ public class BookingOps {
 
         // The next two functions are package-private so that they can be reused in ResaleOps.java
 
+    /**
+     * @param conn
+     * @throws SQLException
+     */
     static void printUpcomingPerformances(Connection conn) throws SQLException {
         String sql = "SELECT p.performance_id, e.title, v.name AS venue_name, v.city, p.performance_datetime " +
                      "FROM performance p " +
@@ -371,6 +480,12 @@ public class BookingOps {
         }
     }
     
+    /**
+     * @param conn
+     * @param performanceId
+     * @return
+     * @throws SQLException
+     */
     static String lookupPerformanceStatus(Connection conn, int performanceId) throws SQLException {
         String sql = "SELECT status FROM performance WHERE performance_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -384,8 +499,21 @@ public class BookingOps {
         }
     }
 
+    /**
+     * CardOnFile
+     * @param cardNumber
+     * @param cardholderName
+     * @param expiryMonth
+     * @param expiryYear
+     */
     private record CardOnFile(String cardNumber, String cardholderName, int expiryMonth, int expiryYear) {}
 
+    /**
+     * @param conn
+     * @param customerId
+     * @return
+     * @throws SQLException
+     */
     private static CardOnFile lookupCustomerCard(Connection conn, int customerId) throws SQLException {
         String sql = "SELECT card_number, cardholder_name, expiry_month, expiry_year " + "FROM credit_card WHERE customer_id = ? LIMIT 1";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -404,6 +532,14 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param customerId
+     * @param performanceId
+     * @param card
+     * @return
+     * @throws SQLException
+     */
     private static int insertOrder(Connection conn, int customerId, int performanceId, CardOnFile card) throws SQLException {
         String payExpiry = String.format("%02d/%d", card.expiryMonth(), card.expiryYear());
         String sql = "INSERT INTO orders (customer_id, performance_id, order_datetime, pay_card_number, pay_cardholder, pay_expiry) " +
@@ -427,6 +563,12 @@ public class BookingOps {
     NOTE: THE FUNCTIONS IN THIS SECTION ARE ALL RELATED TO CANCELLING TICKETS
      */
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @throws SQLException
+     */
     public static void cancelTickets(Connection conn, Scanner scanner, Session session) throws SQLException {
         // First, create a list of all tickets that CAN be cancelled
         List<CancellableTicket> tickets = listCancellableTickets(conn, session.userId());
@@ -492,12 +634,30 @@ public class BookingOps {
         }
     }
 
+    /**
+     * CancellableTicket
+     * @param ticketId
+     * @param seatId
+     * @param faceValue
+     * @param performanceId
+     * @param eventTitle
+     * @param performanceDatetime
+     * @param sectionName
+     * @param rowName
+     * @param seatNumber
+     */
     private record CancellableTicket(int ticketId, Integer seatId, BigDecimal faceValue, int performanceId, String eventTitle, LocalDateTime performanceDatetime, String sectionName, String rowName, Integer seatNumber) {
         boolean isReserved() {
             return rowName != null;
         }
     }
 
+    /**
+     * @param conn
+     * @param customerId
+     * @return
+     * @throws SQLException
+     */
     private static List<CancellableTicket> listCancellableTickets(Connection conn, int customerId) throws SQLException {
         /*
         Checks that:
@@ -545,6 +705,9 @@ public class BookingOps {
         return tickets;
     }
 
+    /**
+     * @param tickets
+     */
     private static void printCancellableTickets(List<CancellableTicket> tickets) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -569,6 +732,12 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param ticketId
+     * @return
+     * @throws SQLException
+     */
     private static boolean markTicketCancelled(Connection conn, int ticketId) throws SQLException {
         // status/cancelled_at/cancel_type must all change together since the schema's CHECK constaint requires all three or none
         String sql = "UPDATE ticket SET status = 'CANCELLED', cancelled_at = ?, cancel_type = 'CUSTOMER' " +
@@ -580,6 +749,12 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param performanceId
+     * @param seatId
+     * @throws SQLException
+     */
     private static void releaseSeatHold(Connection conn, int performanceId, int seatId) throws SQLException {
         String sql = "DELETE FROM seat_hold WHERE performance_id = ? AND seat_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -589,6 +764,11 @@ public class BookingOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param ticketId
+     * @throws SQLException
+     */
     private static void closeActiveListingForTicket(Connection conn, int ticketId) throws SQLException {
         String sql = "UPDATE listing SET status = 'WITHDRAWN', closed_at = ? WHERE ticket_id = ? AND status = 'ACTIVE'";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -599,6 +779,9 @@ public class BookingOps {
     }
 
     private static class BookingAbortedException extends RuntimeException {
+        /**
+         * @param message
+         */
         BookingAbortedException(String message) {
             super(message);
         }

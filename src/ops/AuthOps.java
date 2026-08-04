@@ -10,6 +10,12 @@ import session.Session;
 import util.ConsoleUtil;
 
 public class AuthOps {
+    /**
+     * @param conn
+     * @param scanner
+     * @return
+     * @throws SQLException
+     */
     public static Session authenticate(Connection conn, Scanner scanner) throws SQLException {
         while (true) {
             printWelcome();
@@ -28,6 +34,9 @@ public class AuthOps {
         }
     }
 
+    /**
+     * 
+     */
     private static void printWelcome() {
         System.out.print("""
                 
@@ -39,6 +48,12 @@ public class AuthOps {
 
 
     // Looks up a user by email ONLY.
+    /**
+     * @param conn
+     * @param scanner
+     * @return
+     * @throws SQLException
+     */
     private static Session signIn(Connection conn, Scanner scanner) throws SQLException {
         System.out.print("Email > ");
         String email = scanner.nextLine().trim();

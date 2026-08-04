@@ -20,6 +20,11 @@ public class UserOps {
 
     // OPERATIONS
 
+    /**
+     * @param conn
+     * @param scanner
+     * @throws SQLException
+     */
     public static void createUser(Connection conn, Scanner scanner) throws SQLException {
         System.out.print("Email > ");
         String email = scanner.nextLine().trim();
@@ -105,6 +110,13 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @return
+     * @throws SQLException
+     */
     public static boolean deleteUser(Connection conn, Scanner scanner, Session session) throws SQLException {
         System.out.print("Are you sure you want to delete your account? This cannot be undone. (Y/N) > ");
         String confirm = scanner.nextLine().trim();
@@ -126,6 +138,11 @@ public class UserOps {
         return true;
     }
 
+    /**
+     * @param conn
+     * @param session
+     * @throws SQLException
+     */
     public static void viewAccountInfo(Connection conn, Session session) throws SQLException {
         String sql = "SELECT full_name, address, email, date_of_birth, role FROM users WHERE user_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -146,6 +163,11 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param session
+     * @throws SQLException
+     */
     public static void viewCreditCardInfo(Connection conn, Session session) throws SQLException {
         if (!session.isCustomer()) {
             System.out.println("Only customer accounts have payment info to view.");
@@ -174,6 +196,12 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @throws SQLException
+     */
     public static void updateEmail(Connection conn, Scanner scanner, Session session) throws SQLException {
         System.out.print("Enter new Email Address: > ");
         String newEmail = scanner.nextLine().trim();
@@ -208,6 +236,12 @@ public class UserOps {
         System.out.println("Address updated successfully.");
     }
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @throws SQLException
+     */
     public static void updateCreditCardInfo(Connection conn, Scanner scanner, Session session) throws SQLException {
         int userId = session.userId();
 
@@ -232,6 +266,10 @@ public class UserOps {
 
     // PROMPT/INPUT HELPER FUNCTIONS
 
+    /**
+     * @param scanner
+     * @return
+     */
     private static String promptRole(Scanner scanner) {
         System.out.print("""
             Role?
@@ -250,6 +288,12 @@ public class UserOps {
 
     private record EmailLookup(Integer userId, boolean isDeleted) {}
 
+    /**
+     * @param conn
+     * @param email
+     * @return
+     * @throws SQLException
+     */
     private static EmailLookup lookupEmail(Connection conn, String email) throws SQLException {
         String sql = "SELECT user_id, is_deleted FROM users where EMAIL = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -263,6 +307,12 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param userId
+     * @param email
+     * @throws SQLException
+     */
     private static void updateUserEmail(Connection conn, int userId, String email) throws SQLException {
         String sql = "UPDATE users SET email = ? WHERE user_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -275,6 +325,12 @@ public class UserOps {
 
     // ADDRESS HELPERS
 
+    /**
+     * @param conn
+     * @param userId
+     * @param address
+     * @throws SQLException
+     */
     private static void updateUserAddress(Connection conn, int userId, String address) throws SQLException {
         String sql = "UPDATE users SET address = ? WHERE user_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -286,6 +342,10 @@ public class UserOps {
 
     // DATE HELPERS
 
+    /**
+     * @param scanner
+     * @return
+     */
     private static LocalDate promptValidDateOfBirth(Scanner scanner) {
         System.out.print("Date of birth (YYYY-MM-DD) > ");
         String input = scanner.nextLine().trim();
@@ -309,8 +369,19 @@ public class UserOps {
 
     // CREDIT CARD HELPERS
 
+    /**
+     * CreditCardInfo
+     * @param cardNumber
+     * @param cardholderName
+     * @param expiryMonth
+     * @param expiryYear
+     */
     private record CreditCardInfo(String cardNumber, String cardholderName, int expiryMonth, int expiryYear) {}
 
+    /**
+     * @param scanner
+     * @return
+     */
     private static CreditCardInfo promptCreditCardDetails(Scanner scanner) {
         System.out.print("Card number > ");
         String cardNumber = scanner.nextLine().trim();
@@ -342,6 +413,12 @@ public class UserOps {
         return new CreditCardInfo(cardNumber, cardholderName, month, year);
     }
 
+    /**
+     * @param conn
+     * @param userId
+     * @param card
+     * @throws SQLException
+     */
     private static void insertCreditCard(Connection conn, int userId, CreditCardInfo card) throws SQLException {
         String sql = "INSERT INTO credit_card (customer_id, card_number, cardholder_name, expiry_month, expiry_year) " + "VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -354,6 +431,12 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param userId
+     * @param card
+     * @throws SQLException
+     */
     private static void updateCreditCard(Connection conn, int userId, CreditCardInfo card) throws SQLException {
         String sql = "UPDATE credit_card SET card_number = ?, cardholder_name = ?, expiry_month = ?, expiry_year = ? " + "WHERE customer_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -368,6 +451,16 @@ public class UserOps {
 
     // ADDITIONAL HELPERS
 
+    /**
+     * @param conn
+     * @param fullName
+     * @param address
+     * @param email
+     * @param dob
+     * @param role
+     * @return
+     * @throws SQLException
+     */
     private static int insertUser(Connection conn, String fullName, String address, String email, LocalDate dob, String role) throws SQLException {
         String sql = "INSERT INTO users (full_name, address, email, date_of_birth, role, is_deleted) " + "VALUES (?, ?, ?, ?, ?, FALSE)";
 
@@ -385,6 +478,11 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param userId
+     * @throws SQLException
+     */
     private static void reactivateUser(Connection conn, int userId) throws SQLException {
         String sql = "UPDATE users SET is_deleted = FALSE WHERE user_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -396,6 +494,12 @@ public class UserOps {
     // DELETION HELPERS
 
         // The function below will query all tables where user_id is a foreign key
+    /**
+     * @param conn
+     * @param userId
+     * @return
+     * @throws SQLException
+     */
     private static boolean hasHistory(Connection conn, int userId) throws SQLException {
         if (existsWhere(conn, "SELECT 1 FROM credit_card WHERE customer_id = ?", userId)) return true;
         if (existsWhere(conn, "SELECT 1 FROM event WHERE organizer_id = ?", userId)) return true;
@@ -405,6 +509,13 @@ public class UserOps {
         return existsWhere(conn, "SELECT 1 FROM review WHERE customer_id = ?", userId);
     }
 
+    /**
+     * @param conn
+     * @param sql
+     * @param userId
+     * @return
+     * @throws SQLException
+     */
     private static boolean existsWhere(Connection conn, String sql, int userId) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
@@ -414,6 +525,13 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param sql
+     * @param userId
+     * @return
+     * @throws SQLException
+     */
     private static boolean existsWhereEither(Connection conn, String sql, int userId) throws SQLException {
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, userId);
@@ -424,6 +542,11 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param userId
+     * @throws SQLException
+     */
     private static void softDelete(Connection conn, int userId) throws SQLException {
         String sql = "UPDATE users SET is_deleted = TRUE WHERE user_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -432,6 +555,11 @@ public class UserOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param userId
+     * @throws SQLException
+     */
     private static void hardDelete(Connection conn, int userId) throws SQLException {
         String sql = "DELETE FROM users WHERE user_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {

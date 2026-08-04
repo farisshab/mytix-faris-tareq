@@ -16,6 +16,12 @@ import util.InputUtil;
 
 public class ReviewOps {
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @throws SQLException
+     */
     public static void submitReview(Connection conn, Scanner scanner, Session session) throws SQLException {
         List <ReviewablePerformance> performances = listReviewablePerformances(conn, session.userId());
         if (performances.isEmpty()) {
@@ -74,8 +80,21 @@ public class ReviewOps {
         }
     }
 
+    /**
+     * ReviewablePerformance
+     * @param performanceId
+     * @param eventTitle
+     * @param venueName
+     * @param performanceDatetime
+     */
     private record ReviewablePerformance(int performanceId, String eventTitle, String venueName, LocalDateTime performanceDatetime) {}
 
+    /**
+     * @param conn
+     * @param customerId
+     * @return
+     * @throws SQLException
+     */
     private static List<ReviewablePerformance> listReviewablePerformances(Connection conn, int customerId) throws SQLException {
         // DISTINCT is important, so we do not produce duplicate rows when someone owns 2 tickets to the same performance
         String sql = "SELECT DISTINCT p.performance_id, e.title, v.name AS venue_name, p.performance_datetime " +
@@ -111,6 +130,9 @@ public class ReviewOps {
         return performances;
     }
 
+    /**
+     * @param performances
+     */
     private static void printReviewablePerformances(List<ReviewablePerformance> performances) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         System.out.println("\n--- Performances You Can Review ---");
@@ -119,6 +141,11 @@ public class ReviewOps {
         }
     }
     
+    /**
+     * @param scanner
+     * @param label
+     * @return
+     */
     private static Integer promptRating(Scanner scanner, String label) {
         Integer rating = InputUtil.promptInt(scanner, label + " rating (1-5) > ");
         if (rating == null) {
@@ -131,6 +158,15 @@ public class ReviewOps {
         return rating;
     }
 
+    /**
+     * @param conn
+     * @param customerId
+     * @param performanceId
+     * @param eventRating
+     * @param venueRating
+     * @param comment
+     * @throws SQLException
+     */
     private static void insertReview(Connection conn, int customerId, int performanceId, int eventRating, int venueRating, String comment) throws SQLException {
         String sql = "INSERT INTO review (customer_id, performance_id, event_rating, venue_rating, comment_text, created_at) " +
                      "VALUES (?, ?, ?, ?, ?, ?)";

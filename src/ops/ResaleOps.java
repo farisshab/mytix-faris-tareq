@@ -23,6 +23,12 @@ public class ResaleOps {
 
     // CREATING A LISTING
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @throws SQLException
+     */
     public static void listForResale(Connection conn, Scanner scanner, Session session) throws SQLException {
         List<ListableTicket> tickets = listListableTickets(conn, session.userId());
         if (tickets.isEmpty()) {
@@ -69,8 +75,26 @@ public class ResaleOps {
         }
     }
 
+    /**
+     * ListableTicket
+     * @param ticketId
+     * @param faceValue
+     * @param resaleCap
+     * @param performanceId
+     * @param eventTitle
+     * @param performanceDatetime
+     * @param sectionName
+     * @param rowName
+     * @param seatNumber
+     */
     private record ListableTicket(int ticketId, BigDecimal faceValue, BigDecimal resaleCap, int performanceId, String eventTitle, LocalDateTime performanceDatetime, String sectionName, String rowName, Integer seatNumber) {}
 
+    /**
+     * @param conn
+     * @param customerId
+     * @return
+     * @throws SQLException
+     */
     private static List<ListableTicket> listListableTickets(Connection conn, int customerId) throws SQLException {
         // Get's the owner via the latest row in ticket_ownership.
         // Works very similarly to BookingOps.listCancellableTickets, without the 7-day constraint
@@ -117,6 +141,9 @@ public class ResaleOps {
         return tickets;
     }
 
+    /**
+     * @param tickets
+     */
     private static void printListableTickets(List<ListableTicket> tickets) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         Map<Integer, List<ListableTicket>> byPerformance = new LinkedHashMap<>();
@@ -135,6 +162,11 @@ public class ResaleOps {
         }
     }
 
+    /**
+     * @param scanner
+     * @param cap
+     * @return
+     */
     private static BigDecimal promptResalePrice(Scanner scanner, BigDecimal cap) {
         System.out.print("List price > $");
         String input = scanner.nextLine().trim();
@@ -158,6 +190,14 @@ public class ResaleOps {
         return price;
     }
 
+    /**
+     * @param conn
+     * @param ticketId
+     * @param sellerId
+     * @param listPrice
+     * @return
+     * @throws SQLException
+     */
     private static int insertListing(Connection conn, int ticketId, int sellerId, BigDecimal listPrice) throws SQLException {
         String sql = "INSERT INTO listing (ticket_id, seller_id, list_price, status, created_at) " +
                      "VALUES (?, ?, ?, 'ACTIVE', ?)";
@@ -176,6 +216,12 @@ public class ResaleOps {
 
     // WITHDRAWING A LISTING
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @throws SQLException
+     */
     public static void withdrawListing(Connection conn, Scanner scanner, Session session) throws SQLException {
         List<OwnedListing> listings = listActiveListingsForSeller(conn, session.userId());
         if (listings.isEmpty()) {
@@ -210,8 +256,24 @@ public class ResaleOps {
         System.out.printf("Listing #%d withdrawn.%n", chosen.listingId());
     }
 
+    /**
+     * OwnedListing
+     * @param listingId
+     * @param listPrice
+     * @param createdAt
+     * @param eventTitle
+     * @param sectionName
+     * @param rowName
+     * @param seatNumber
+     */
     private record OwnedListing(int listingId, BigDecimal listPrice, LocalDateTime createdAt, String eventTitle, String sectionName, String rowName, Integer seatNumber) {}
 
+    /**
+     * @param conn
+     * @param sellerId
+     * @return
+     * @throws SQLException
+     */
     private static List<OwnedListing> listActiveListingsForSeller(Connection conn, int sellerId) throws SQLException {
         String sql = "SELECT l.listing_id, l.list_price, l.created_at, e.title, " +
                      "COALESCE(s_res.section_name, s_ga.section_name) AS section_name, " +
@@ -248,6 +310,9 @@ public class ResaleOps {
         return listings;
     }
 
+    /**
+     * @param listings
+     */
     private static void printOwnedListings(List<OwnedListing> listings) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:MM");
         System.out.println("\n--- Your Active Listings ---");
@@ -263,6 +328,11 @@ public class ResaleOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param listingId
+     * @throws SQLException
+     */
     private static void withdraw(Connection conn, int listingId) throws SQLException {
         String sql = "UPDATE listing SET status = 'WITHDRAWN', closed_at = ? WHERE listing_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -274,6 +344,12 @@ public class ResaleOps {
 
     // BUYING A LISTING
 
+    /**
+     * @param conn
+     * @param scanner
+     * @param session
+     * @throws SQLException
+     */
     public static void buyListing(Connection conn, Scanner scanner, Session session) throws SQLException {
         if (!hasCardOnFile(conn, session.userId())) {
             System.out.println("No credit card on file - add one from Account Management before buying.");
@@ -341,8 +417,23 @@ public class ResaleOps {
         }
     }
 
+    /**
+     * BrowsableListing
+     * @param listingId
+     * @param ticketId
+     * @param listPrice
+     * @param sectionName
+     * @param rowName
+     * @param seatNumber
+     */
     private record BrowsableListing(int listingId, int ticketId, BigDecimal listPrice, String sectionName, String rowName, Integer seatNumber) {}
 
+    /**
+     * @param conn
+     * @param customerId
+     * @return
+     * @throws SQLException
+     */
     private static boolean hasCardOnFile(Connection conn, int customerId) throws SQLException {
         String sql = "SELECT 1 FROM credit_card WHERE customer_id = ? LIMIT 1";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -353,6 +444,13 @@ public class ResaleOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param performanceId
+     * @param excludingCustomerId
+     * @return
+     * @throws SQLException
+     */
     private static List<BrowsableListing> listBrowsableListings(Connection conn, int performanceId, int excludingCustomerId) throws SQLException {
         String sql = "SELECT l.listing_id, l.ticket_id, l.list_price, " +
                      "COALESCE(s_res.section_name, s_ga.section_name) AS section_name, " +
@@ -390,6 +488,9 @@ public class ResaleOps {
         return listings;
     }
 
+    /**
+     * @param listings
+     */
     private static void printBrowsableListings(List<BrowsableListing> listings) {
         System.out.println("\n--- Available Listings ---");
         for (BrowsableListing l : listings) {
@@ -398,6 +499,13 @@ public class ResaleOps {
         }
     }
 
+    /**
+     * @param conn
+     * @param listingId
+     * @param ticketId
+     * @param buyerId
+     * @throws SQLException
+     */
     private static void purchaseListing(Connection conn, int listingId, int ticketId, int buyerId) throws SQLException {
         String updateSql = "UPDATE listing SET status = 'SOLD', buyer_id = ?, closed_at = ? WHERE listing_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(updateSql)) {
@@ -420,6 +528,12 @@ public class ResaleOps {
 
     // SHARED HELPERS
 
+    /**
+     * @param sectionName
+     * @param rowName
+     * @param seatNumber
+     * @return
+     */
     private static String describeSeat(String sectionName, String rowName, Integer seatNumber) {
         if (rowName != null) {
             return String.format("%s, Row %s, Seat %d", sectionName, rowName, seatNumber);
