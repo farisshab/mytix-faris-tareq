@@ -22,7 +22,6 @@ public class SearchMenu {
                 case "5" -> SearchOps.q5(conn, scanner);
                 case "6" -> SearchOps.q6(conn, scanner);
                 case "7" -> SearchOps.q7(conn, scanner);
-                case "8" -> listVenues(conn);
                 case "0" -> back = true;
                 default -> System.out.println("Unrecognized option.");
             }
@@ -40,7 +39,6 @@ public class SearchMenu {
             5) Advanced filters (Q5)
             6) Seat map for a performance (Q6)
             7) Best available seats (Q7)
-            8) List venues (temporary)
             0) Go Back
             =======================
             > """);
