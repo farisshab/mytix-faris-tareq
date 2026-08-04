@@ -23,20 +23,24 @@ Same rule everywhere it comes up: R1 and R3 on Faris's side, R7 on mine.
 
 ## R4: Scalper flag
 
-For every city, find customers who within the past year listed more than half of
-the tickets they bought there, given they bought at least ten.
+Find the scalpers, then report them by city. A customer qualifies as a scalper on
+their total past-year activity: they bought at least ten tickets and listed more
+than half of them. The report then lists each scalper under every city where they
+bought, showing their in-city counts next to the totals.
 
-- "Listed" means the ticket has a `listing` row of any status (ACTIVE, SOLD, or
-  WITHDRAWN). The spec says listed, not sold: the intent to flip is the signal, and
+- "Listed" means the customer has a `listing` row (any status: ACTIVE, SOLD, or
+  WITHDRAWN) for a ticket they bought, matching the listing's seller to the
+  purchaser. The spec says listed, not sold: the intent to flip is the signal, and
   the system is meant to flag this before a sale even happens.
-- Thresholds are evaluated per city, where city is the venue's city. For each
-  customer and city, count the tickets they bought there in the past year; flag them
-  if that count is at least 10 and more than half of them are listed. Assumption:
-  the 10-and-half test is within a single city, not across all their tickets,
-  because the handout says "for every city." Someone with 6 in Toronto and 6 in
-  Montreal is not flagged in either.
+- The 10-and-half thresholds are global, over all their past-year tickets, not per
+  city. We first read this as a per-city test, but the more natural reading of
+  "listed more than half of all the tickets they purchased, provided they purchased
+  at least ten" is that the counts are over all their tickets, with "for every city"
+  describing how the output is grouped. It also fits the sample data, where the
+  planted scalpers spread their buys across a few cities and would slip past a
+  per-city threshold.
 - "Purchased" is a primary-market ticket (from an `orders` row). Past year is the
-  order date within a rolling 365 days.
+  order date within a rolling 365 days. City is the venue's city.
 
 
 ## R7: Sell-through
