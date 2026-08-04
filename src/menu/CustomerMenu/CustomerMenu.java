@@ -6,6 +6,7 @@ import java.util.Scanner;
 
 import ops.BookingOps;
 import ops.ResaleOps;
+import ops.ReviewOps;
 import session.Session;
 import util.ConsoleUtil;
 
@@ -22,7 +23,7 @@ public class CustomerMenu {
                 case "3" -> ResaleOps.listForResale(conn, scanner, session);
                 case "4" -> ResaleOps.withdrawListing(conn, scanner, session);
                 case "5" -> ResaleOps.buyListing(conn, scanner, session);
-                case "6" -> System.out.println("TODO: Submit a Review");
+                case "6" -> ReviewOps.submitReview(conn, scanner, session);
                 case "0" -> back = true;
                 default -> System.out.println("Unrecognized option.");
             }
