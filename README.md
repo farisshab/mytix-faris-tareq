@@ -1,3 +1,15 @@
+# MyTix
+
+CSCC43 database project.
+
+**Group members**
+- Tareq Abousherif (1007977824)
+- Faris Shabaytah (1011300986)
+
+**To run:** `run.sh` (details under Running below).
+
+---
+
 ## Prerequisites
 
 Install these before you start:

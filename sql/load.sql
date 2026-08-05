@@ -13742,7 +13742,7 @@ INSERT INTO seat_hold (performance_id, seat_id, hold_type, ticket_id) VALUES
   (41, 3827, 'BLOCKED', NULL),
   (41, 3688, 'BLOCKED', NULL);
 
--- ticket_ownership (1866 rows)
+-- ticket_ownership (1867 rows)
 INSERT INTO ticket_ownership (ownership_id, ticket_id, owner_id, acquired_at, acquired_via) VALUES
   (1, 1, 110, (NOW() + INTERVAL -75 DAY), 'PURCHASE'),
   (2, 2, 40, (NOW() + INTERVAL -40 DAY), 'PURCHASE'),
@@ -15611,16 +15611,17 @@ INSERT INTO ticket_ownership (ownership_id, ticket_id, owner_id, acquired_at, ac
   (1856, 1856, 13, (NOW() + INTERVAL -144 DAY), 'PURCHASE'),
   (1857, 1857, 13, (NOW() + INTERVAL -144 DAY), 'PURCHASE'),
   (1858, 1858, 13, (NOW() + INTERVAL -144 DAY), 'PURCHASE'),
-  (1859, 81, 16, (NOW() + INTERVAL -18 DAY + INTERVAL 1 HOUR), 'RESALE'),
-  (1860, 127, 8, (NOW() + INTERVAL -29 DAY + INTERVAL 6 HOUR), 'RESALE'),
-  (1861, 1800, 50, (NOW() + INTERVAL -16 DAY + INTERVAL 9 HOUR), 'RESALE'),
-  (1862, 1804, 91, (NOW() + INTERVAL -40 DAY + INTERVAL 7 HOUR), 'RESALE'),
-  (1863, 1819, 76, (NOW() + INTERVAL -47 DAY + INTERVAL 7 HOUR), 'RESALE'),
-  (1864, 67, 115, (NOW() + INTERVAL -18 DAY + INTERVAL 4 HOUR), 'RESALE'),
-  (1865, 74, 93, (NOW() + INTERVAL -44 DAY + INTERVAL 12 HOUR), 'RESALE'),
-  (1866, 74, 106, (NOW() + INTERVAL -17 DAY + INTERVAL 10 HOUR), 'RESALE');
+  (1859, 81, 47, (NOW() + INTERVAL -25 DAY + INTERVAL 2 HOUR), 'RESALE'),
+  (1860, 127, 9, (NOW() + INTERVAL -12 DAY + INTERVAL 5 HOUR), 'RESALE'),
+  (1861, 1800, 75, (NOW() + INTERVAL -39 DAY + INTERVAL 12 HOUR), 'RESALE'),
+  (1862, 1804, 72, (NOW() + INTERVAL -31 DAY + INTERVAL 2 HOUR), 'RESALE'),
+  (1863, 1819, 91, (NOW() + INTERVAL -40 DAY + INTERVAL 7 HOUR), 'RESALE'),
+  (1864, 67, 76, (NOW() + INTERVAL -47 DAY + INTERVAL 7 HOUR), 'RESALE'),
+  (1865, 74, 115, (NOW() + INTERVAL -18 DAY + INTERVAL 4 HOUR), 'RESALE'),
+  (1866, 108, 93, (NOW() + INTERVAL -44 DAY + INTERVAL 12 HOUR), 'RESALE'),
+  (1867, 108, 106, (NOW() + INTERVAL -17 DAY + INTERVAL 10 HOUR), 'RESALE');
 
--- listing (41 rows)
+-- listing (42 rows)
 INSERT INTO listing (listing_id, ticket_id, seller_id, list_price, status, created_at, closed_at, buyer_id) VALUES
   (1, 1833, 112, 185.92, 'WITHDRAWN', (NOW() + INTERVAL -39 DAY), (NOW() + INTERVAL -34 DAY), NULL),
   (2, 1834, 112, 210.57, 'ACTIVE', (NOW() + INTERVAL -16 DAY), NULL, NULL),
@@ -15655,14 +15656,15 @@ INSERT INTO listing (listing_id, ticket_id, seller_id, list_price, status, creat
   (31, 1822, 18, 167.99, 'ACTIVE', (NOW() + INTERVAL -1 DAY), NULL, NULL),
   (32, 83, 49, 113.63, 'ACTIVE', (NOW() + INTERVAL -14 DAY), NULL, NULL),
   (33, 1826, 69, 81.9, 'ACTIVE', (NOW() + INTERVAL -17 DAY), NULL, NULL),
-  (34, 81, 81, 115.67, 'SOLD', (NOW() + INTERVAL -19 DAY), (NOW() + INTERVAL -14 DAY), 16),
-  (35, 127, 107, 207.79, 'SOLD', (NOW() + INTERVAL -34 DAY), (NOW() + INTERVAL -30 DAY), 8),
-  (36, 1800, 57, 119.06, 'SOLD', (NOW() + INTERVAL -18 DAY), (NOW() + INTERVAL -13 DAY), 50),
-  (37, 1804, 58, 105.76, 'SOLD', (NOW() + INTERVAL -45 DAY), (NOW() + INTERVAL -41 DAY), 91),
-  (38, 1819, 105, 214.43, 'SOLD', (NOW() + INTERVAL -49 DAY), (NOW() + INTERVAL -43 DAY), 76),
-  (39, 67, 22, 205.68, 'SOLD', (NOW() + INTERVAL -20 DAY), (NOW() + INTERVAL -16 DAY), 115),
-  (40, 74, 106, 120.38, 'SOLD', (NOW() + INTERVAL -45 DAY), (NOW() + INTERVAL -43 DAY), 93),
-  (41, 74, 93, 121.62, 'SOLD', (NOW() + INTERVAL -22 DAY), (NOW() + INTERVAL -20 DAY), 106);
+  (34, 81, 81, 132.0, 'SOLD', (NOW() + INTERVAL -31 DAY), (NOW() + INTERVAL -25 DAY), 47),
+  (35, 127, 107, 201.5, 'SOLD', (NOW() + INTERVAL -18 DAY), (NOW() + INTERVAL -14 DAY), 9),
+  (36, 1800, 57, 131.76, 'SOLD', (NOW() + INTERVAL -43 DAY), (NOW() + INTERVAL -40 DAY), 75),
+  (37, 1804, 58, 102.88, 'SOLD', (NOW() + INTERVAL -36 DAY), (NOW() + INTERVAL -34 DAY), 72),
+  (38, 1819, 105, 229.58, 'SOLD', (NOW() + INTERVAL -45 DAY), (NOW() + INTERVAL -41 DAY), 91),
+  (39, 67, 22, 214.43, 'SOLD', (NOW() + INTERVAL -49 DAY), (NOW() + INTERVAL -43 DAY), 76),
+  (40, 74, 106, 113.13, 'SOLD', (NOW() + INTERVAL -20 DAY), (NOW() + INTERVAL -16 DAY), 115),
+  (41, 108, 90, 218.87, 'SOLD', (NOW() + INTERVAL -45 DAY), (NOW() + INTERVAL -43 DAY), 93),
+  (42, 108, 93, 221.12, 'SOLD', (NOW() + INTERVAL -22 DAY), (NOW() + INTERVAL -20 DAY), 106);
 
 -- review (35 rows)
 INSERT INTO review (review_id, customer_id, performance_id, event_rating, venue_rating, comment_text, created_at) VALUES
