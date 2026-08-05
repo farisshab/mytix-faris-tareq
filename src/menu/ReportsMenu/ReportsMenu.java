@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Scanner;
 
+import ops.ReportsOps;
 import util.ConsoleUtil;
 
 public class ReportsMenu {
@@ -14,8 +15,10 @@ public class ReportsMenu {
             String choice = scanner.nextLine().trim();
             ConsoleUtil.clear();
             switch (choice) {
-                case "1", "2", "3", "4", "5", "6", "7", "8", "9" ->
-                    System.out.println("TODO: R" + choice);
+                case "1", "2", "3", "5", "6", "9" -> System.out.println("TODO: R" + choice);
+                case "4" -> ReportsOps.r4(conn, scanner);
+                case "7" -> ReportsOps.r7(conn, scanner);
+                case "8" -> ReportsOps.r8(conn, scanner);
                 case "0" -> back = true;
                 default -> System.out.println("Unrecognized option.");
             }
@@ -26,15 +29,15 @@ public class ReportsMenu {
         System.out.print("""
 
             === Reports ===
-            1) R1
-            2) R2
-            3) R3
-            4) R4
-            5) R5
-            6) R6
-            7) R7
-            8) R8
-            9) R9
+            1) Tickets sold & revenue by city (R1)
+            2) Event & performance counts (R2)
+            3) Organizer revenue ranking (R3)
+            4) Possible scalpers by city (R4)
+            5) Customer order ranking (R5)
+            6) Most cancellations (R6)
+            7) Sell-through (R7)
+            8) Resale report (R8)
+            9) Event noun phrases (R9)
             0) Go Back
             =======================
             > """);
