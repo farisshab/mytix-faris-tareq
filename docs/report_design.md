@@ -101,13 +101,15 @@ performances in Toronto").
 
 **The idea.**
 - Number of tiers: the median tier count of the comparables, fallback 3, clamped to
-  1..4 since that covers real practice.
+  1..4 since that covers real practice. We count only tiers that have sections
+  assigned, so the tier count always agrees with the capacity shares below.
 - Prices: pool the face values of sold (active) tickets across the comparables,
   split that pool into K evenly spaced percentile bands, and take the median of each
   band as the price for that tier. Premium is the top band. Round to the nearest $5
   so it reads like real pricing. Basing this on tickets that actually sold means
   demand is already baked in, rather than trusting list prices that may not have
-  moved.
+  moved. If two bands collapse to the same price (a genre that sold almost
+  everything at one price), we nudge the lower tier down so tiers stay distinct.
 - Capacity shares: for each comparable, the fraction of its capacity in its top
   tier, next tier, and so on; average those across comparables. These are targets;
   the organizer still maps whole sections, so they approximate.
