@@ -727,9 +727,10 @@ def plant_cancellations():
 
 
 def build_resale():
-    """listing + ticket_ownership(RESALE). Listings in every status, one exactly at
-    the cap, a ticket resold twice, and the planted scalpers listing most of what
-    they bought. Resale is on upcoming shows (you sell before the show)."""
+    """listing + ticket_ownership(RESALE). Listings in every status, one active and
+    one completed (sold) exactly at the cap, a ticket resold twice, and the planted
+    scalpers listing most of what they bought. Resale is on upcoming shows (you sell
+    before the show)."""
     cap_pct = {r[0]: float(r[4]) for r in DATA["event"]}   # event_id -> resale_cap_pct
 
     def cap_of(e):
@@ -786,7 +787,10 @@ def build_resale():
             list_ticket(e, "ACTIVE", under_cap(e), -random.randint(1, 20))
     e = take()
     if e:
-        list_ticket(e, "ACTIVE", cap_of(e), -random.randint(1, 20))        # exactly at the cap
+        list_ticket(e, "ACTIVE", cap_of(e), -random.randint(1, 20))        # active, exactly at the cap
+    e = take()
+    if e:
+        list_ticket(e, "SOLD", cap_of(e), -random.randint(15, 50), buyer=other_than(e["owner_id"]))  # sold at the cap
     for _ in range(6):
         e = take()
         if e:
