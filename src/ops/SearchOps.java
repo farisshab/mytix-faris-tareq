@@ -52,6 +52,173 @@ public class SearchOps {
         "  ) section_avail GROUP BY performance_id" +
         ")";
 
+    private static final double DEFAULT_RADIUS_KM = 50.0;
+
+    // ---- Q1: performances near a latitude/longitude, ranked by distance or by cost (ascending or descending) ----
+    public static void q1(Connection conn, Scanner scanner) throws SQLException {
+        BigDecimal latitude = promptRequiredDecimal(scanner, "Your latitude > ");
+        if (latitude == null) {
+            return;
+        }
+        BigDecimal longitude = promptRequiredDecimal(scanner, "Your longitude > ");
+        if (longitude == null) {
+            return;
+        }
+
+        System.out.printf("Search radius in km (blank for default %.0f) > ", DEFAULT_RADIUS_KM);
+        String radiusInput = scanner.nextLine().trim();
+        double radiusKm = DEFAULT_RADIUS_KM;
+        if (!radiusInput.isEmpty()) {
+            try {
+                radiusKm = Double.parseDouble(radiusInput);
+            } catch (NumberFormatException e) {
+                System.out.printf("Not a number, using default radius of %.0f km%n", DEFAULT_RADIUS_KM);
+            }
+        }
+
+        System.out.print("""
+                Rank by:
+                1) Distance (nearest first)
+                2) Cheapest available ticket first
+                3) Most expensive available ticket first
+                > """);
+        String rankChoice = scanner.nextLine().trim();
+        String orderBy = switch (rankChoice) {
+            case "2" -> "cheapest_price IS NULL, cheapest_price ASC";
+            case "3" -> "cheapest_price IS NULL, cheapest_price DESC";
+            default -> "distance_km ASC";
+        };
+
+        String sql = PERF_AVAIL + ", distances AS (" +
+            "  SELECT p.performance_id, e.title, v.name AS venue, v.city, p.performance_datetime, " +
+            "         (6371 * ACOS(LEAST(1, GREATEST(-1, " +
+            "             COS(RADIANS(?)) * COS(RADIANS(v.latitude)) * COS(RADIANS(v.longitude) - RADIANS(?)) " +
+            "             + SIN(RADIANS(?)) * SIN(RADIANS(v.latitude)) " +
+            "         )))) AS distance_km, " +
+            "         pa.cheapest_price " +
+            "  FROM performance p " +
+            "  JOIN venue v ON v.venue_id = p.venue_id " +
+            "  JOIN event e ON e.event_id = p.event_id " +
+            "  LEFT JOIN perf_avail pa ON pa.performance_id = p.performance_id " +
+            "  WHERE p.status = 'SCHEDULED' AND p.performance_datetime >= NOW()" +
+            ") " +
+            "SELECT * FROM distances WHERE distance_km <= ? ORDER BY " + orderBy;
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setBigDecimal(1, latitude);
+            stmt.setBigDecimal(2, longitude);
+            stmt.setBigDecimal(3, latitude);
+            stmt.setDouble(4, radiusKm);
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.printf("%n--- Performances within %.1f km ---%n", radiusKm);
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    LocalDateTime dt = rs.getObject("performance_datetime", LocalDateTime.class);
+                    BigDecimal price = rs.getBigDecimal("cheapest_price");
+                    String finalPrice;
+                    if (price != null) {
+                        finalPrice = String.format(" - from $%.2f", price);
+                    } else {
+                        finalPrice = " - sold out";
+                    }
+                    System.out.printf("[%d] %s @ %s, %s - %s - %.1f km away %s%n",
+                        rs.getInt("performance_id"),
+                        rs.getString("title"),
+                        rs.getString("venue"),
+                        rs.getString("city"),
+                        dt.format(DT),
+                        rs.getDouble("distance_km"),
+                        finalPrice
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no performances found within that radius)");
+                }
+            }
+        }
+    }
+
+    // ---- Q2: performances in the same or adjacent postal code ----
+    public static void q2(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("Postal code > ");
+        String postal = scanner.nextLine().trim();
+        if (postal.isEmpty()) {
+            System.out.println("Postal code is required.");
+            return;
+        }
+
+        String sql = PERF_AVAIL +
+            " SELECT p.performance_id, e.title, v.name AS venue, v.postal_code, v.city, p.performance_datetime, pa.cheapest_price " +
+            "FROM performance p " +
+            "JOIN venue v ON v.venue_id = p.venue_id " +
+            "JOIN event e ON e.event_id = p.event_id " +
+            "LEFT JOIN perf_avail pa ON pa.performance_id = p.performance_id " +
+            "WHERE p.status = 'SCHEDULED' AND p.performance_datetime >= NOW() " +
+            "  AND LEFT(v.postal_code, 2) = LEFT(?, 2) " +
+            "ORDER BY p.performance_datetime";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, postal);
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.printf("%n--- Performances near postal code %s ---%n", postal);
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    printPerformanceLine(rs);
+                }
+                if (!any) {
+                    System.out.println("(no matching performances)");
+                }
+            }
+        }
+    }
+
+    // ---- Q3: exact address search ----
+    public static void q3(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("Exact address > ");
+        String address = scanner.nextLine().trim();
+        if (address.isEmpty()) {
+            System.out.println("Address is required.");
+            return;
+        }
+
+        String venueSql = "SELECT venue_id, name, city, country FROM venue WHERE address = ?";
+        int venueId;
+        try (PreparedStatement stmt = conn.prepareStatement(venueSql)) {
+            stmt.setString(1, address);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    System.out.println("No venue found at that address.");
+                    return;
+                }
+                venueId = rs.getInt("venue_id");
+                System.out.printf("%n--- %s (%s, %s) ---%n", rs.getString("name"), rs.getString("city"), rs.getString("country"));
+            }
+        }
+
+        String perfSql = PERF_AVAIL +
+            " SELECT p.performance_id, e.title, v.name AS venue, v.city, p.performance_datetime, pa.cheapest_price " +
+            "FROM performance p " +
+            "JOIN venue v ON v.venue_id = p.venue_id " +
+            "JOIN event e ON e.event_id = p.event_id " +
+            "LEFT JOIN perf_avail pa ON pa.performance_id = p.performance_id " +
+            "WHERE p.venue_id = ? AND p.status = 'SCHEDULED' AND p.performance_datetime >= NOW() " +
+            "ORDER BY p.performance_datetime";
+        try (PreparedStatement stmt = conn.prepareStatement(perfSql)) {
+            stmt.setInt(1, venueId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    printPerformanceLine(rs);
+                }
+                if (!any) {
+                    System.out.println("(no upcoming performances at this venue)");
+                }
+            }
+        }
+    }
+
     // ---- Q4: performances in a date range with at least N tickets available ----
     // (The Q1-Q3 geo predicate ANDs in here once Faris' location searches exist.)
     public static void q4(Connection conn, Scanner scanner) throws SQLException {
@@ -249,6 +416,36 @@ public class SearchOps {
                     dt.format(DT), rs.getInt("available_count"), rs.getBigDecimal("cheapest_price"));
             }
             if (!any) System.out.println("(no matching performances)");
+        }
+    }
+
+    private static void printPerformanceLine(ResultSet rs) throws SQLException {
+        LocalDateTime dt = rs.getObject("performance_datetime", LocalDateTime.class);
+        BigDecimal price = rs.getBigDecimal("cheapest_price");
+        String finalPrice;
+        if (price != null) {
+            finalPrice = String.format(" - from $%.2f", price);
+        } else {
+            finalPrice = " - sold out";
+        }
+        System.out.printf("[%d] %s @ %s, %s - %s%s%n",
+            rs.getInt("performance_id"),
+            rs.getString("title"),
+            rs.getString("venue"),
+            rs.getString("city"),
+            dt.format(DT),
+            finalPrice
+        );
+    }
+
+    private static BigDecimal promptRequiredDecimal(Scanner scanner, String prompt) {
+        System.out.print(prompt);
+        String s = scanner.nextLine().trim();
+        try {
+            return new BigDecimal(s);
+        } catch (NumberFormatException e) {
+            System.out.println("Not a valid number.");
+            return null;
         }
     }
 

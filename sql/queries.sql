@@ -14,6 +14,61 @@
 -- QUERIES
 -----------------------------------------------------------------------
 
+-- Q1: performances within a radius of a lat/long, ranked by distance (default)
+-- or by cheapest/most expensive available ticket. Haversine in km via ACOS,
+-- clamped to [-1,1] to avoid floating-point rounding pushing the argument
+-- outside ACOS's domain (which would silently return NULL). Default radius
+-- 50km if the caller passes none; ranking mode chosen by the app before this
+-- string is built (never from raw user input). Reuses performance_availability
+-- for cheapest_price so it matches Q4/Q5's definition exactly.
+-- Binds: lat, lng, lat, radius_km.
+WITH distances AS (
+  SELECT p.performance_id, e.title, v.name AS venue, v.city, p.performance_datetime,
+         (6371 * ACOS(LEAST(1, GREATEST(-1,
+             COS(RADIANS(?)) * COS(RADIANS(v.latitude)) * COS(RADIANS(v.longitude) - RADIANS(?))
+             + SIN(RADIANS(?)) * SIN(RADIANS(v.latitude))
+         )))) AS distance_km,
+         pa.cheapest_price
+  FROM performance p
+  JOIN venue v ON v.venue_id = p.venue_id
+  JOIN event e ON e.event_id = p.event_id
+  LEFT JOIN performance_availability pa ON pa.performance_id = p.performance_id
+  WHERE p.status = 'SCHEDULED' AND p.performance_datetime >= NOW()
+)
+SELECT * FROM distances WHERE distance_km <= ?
+ORDER BY distance_km ASC;
+-- (or ORDER BY cheapest_price IS NULL, cheapest_price ASC/DESC for the two price-ranked modes)
+
+
+-- Q2: performances in the same or adjacent postal code. "Adjacent" =
+-- same first-3-characters (Canadian FSA); an exact match is a special case
+-- of this, so one condition covers both halves of the spec's requirement.
+-- Binds: postal_code, postal_code.
+SELECT p.performance_id, e.title, v.name AS venue, v.postal_code, v.city,
+       p.performance_datetime, pa.cheapest_price
+FROM performance p
+JOIN venue v ON v.venue_id = p.venue_id
+JOIN event e ON e.event_id = p.event_id
+LEFT JOIN performance_availability pa ON pa.performance_id = p.performance_id
+WHERE p.status = 'SCHEDULED' AND p.performance_datetime >= NOW()
+  AND LEFT(v.postal_code, 2) = LEFT(?, 2)
+ORDER BY p.performance_datetime;
+
+
+-- Q3: exact address -> the venue, then its upcoming performances. Two
+-- statements: find the venue (bind: address), then list its performances
+-- (bind: venue_id). No fuzzy matching - "exact" per the spec.
+SELECT venue_id, name, city, country FROM venue WHERE address = ?;
+
+SELECT p.performance_id, e.title, v.name AS venue, v.city, p.performance_datetime,
+       pa.cheapest_price
+FROM performance p
+JOIN venue v ON v.venue_id = p.venue_id
+JOIN event e ON e.event_id = p.event_id
+LEFT JOIN performance_availability pa ON pa.performance_id = p.performance_id
+WHERE p.venue_id = ? AND p.status = 'SCHEDULED' AND p.performance_datetime >= NOW()
+ORDER BY p.performance_datetime;
+
 -- Q6: seat-map summary for one performance. One row per section with its tier,
 -- price, and live available / sold / blocked counts. Reserved and GA are two
 -- halves of a UNION. Bind performance_id four times (once per half's joins).
