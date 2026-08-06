@@ -155,7 +155,7 @@ public class SearchOps {
             "JOIN event e ON e.event_id = p.event_id " +
             "LEFT JOIN perf_avail pa ON pa.performance_id = p.performance_id " +
             "WHERE p.status = 'SCHEDULED' AND p.performance_datetime >= NOW() " +
-            "  AND LEFT(v.postal_code, 3) = LEFT(?, 3) " +
+            "  AND LEFT(v.postal_code, 2) = LEFT(?, 2) " +
             "ORDER BY p.performance_datetime";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, postal);

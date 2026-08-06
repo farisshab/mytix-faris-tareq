@@ -28,8 +28,8 @@ The spec sheet asked for three ranking behaviours, with nearest-first being defa
 **Decision 21 - a sold-out (or not-yet-priced) performance sorts last, in either price direction.**
 `cheapest_price` comes from `perf_avail`, which only has a row for a performance with at least one priced, available section. A performance with no tiers assigned yet, or one that's sold out, has no row there, so the LEFT JOIN gives NULL, which causes these performances to appear at the top of the list. `ORDER BY cheapest_price IS NULL, cheapest_price ASC/DESC` forces NULLs to be at the end.
 
-**Decision 22 - adjacent postal code is one with the same first 3 characters (also covers same postal code)**
-The project handout specifies adjacency, but does not define it. True adjacency is not achievable from the postal code string itself without an external geographic table. The assumption is that a postal code's first three characters are within the same region, so this covers both adjacent postal codes, and the postal code specified itself.
+**Decision 22 - adjacent postal code is one with the same first 2 characters (also covers same postal code)**
+The project handout specifies adjacency, but does not define it. True adjacency is not achievable from the postal code string itself without an external geographic table. The assumption is that a postal code's first two characters are within the same region, so this covers both adjacent postal codes, and the postal code specified itself.
 
 **Decision 23 - Q3 is an exact string match on `venue.address`**
 The project handout calls it an "exact search". If nothing matches exactly, the query returns zero rows and the app says so rather than guessing a near match.
