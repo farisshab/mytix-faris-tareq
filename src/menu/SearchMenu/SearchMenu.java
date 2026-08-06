@@ -17,7 +17,9 @@ public class SearchMenu {
             String choice = scanner.nextLine().trim();
             ConsoleUtil.clear();
             switch (choice) {
-                case "1", "2", "3" -> System.out.println("TODO: Q" + choice);
+                case "1" -> SearchOps.q1(conn, scanner);
+                case "2" -> SearchOps.q2(conn, scanner);
+                case "3" -> SearchOps.q3(conn, scanner);
                 case "4" -> SearchOps.q4(conn, scanner);
                 case "5" -> SearchOps.q5(conn, scanner);
                 case "6" -> SearchOps.q6(conn, scanner);

@@ -6,6 +6,33 @@ Design choices for the queries and reports, kept separate from the schema notes
 Ownership on the query side (Phase 3): Tareq has Q4-Q7 and the organizer ops;
 Faris has Q1-Q3 and the customer ops. (Tentative as of 08/01)
 
+## Q1-Q3 - Location searches
+
+The three location-based searches: neabry by distance, by postal code, and by exact address. All three reuse `perf-avail` (from Decision 8).
+
+**Decision 18 - distance in km via the standard Haversine formula, with the argument clamped to [-1, 1].**
+MySQL has no built-in function for plain lat/long, so it's the formula written directly in SQL:
+```
+6371 * ACOS(COS(lat1)*COS(lat2)*COS(lng2-lng1) + SIN(lat1)*SIN(lat2))
+```
+all in radians, where 6371 = Earth's radius im km.
+Due to floating point rounding, the ACOS argument can reach slightly outside of [-1, 1], so we wrap everything in `LEAST(1, GREATEST(-1, ...))`
+
+**Decision 19 - default search radius is 50km, user can override**
+The project handout specified that the user should have a choice of the distance along with a default provided.
+In our case, the default radius will be 50km.
+
+**Decision 20 - ranking mode is chosen in Java, not passed as raw SQL**
+The spec sheet asked for three ranking behaviours, with nearest-first being default. Rather than building the order from raw user input, the menu choice maps to one of three hardcoded ORDER BY strings in Java before we build the query.
+
+**Decision 21 - a sold-out (or not-yet-priced) performance sorts last, in either price direction.**
+`cheapest_price` comes from `perf_avail`, which only has a row for a performance with at least one priced, available section. A performance with no tiers assigned yet, or one that's sold out, has no row there, so the LEFT JOIN gives NULL, which causes these performances to appear at the top of the list. `ORDER BY cheapest_price IS NULL, cheapest_price ASC/DESC` forces NULLs to be at the end.
+
+**Decision 22 - adjacent postal code is one with the same first 3 characters (also covers same postal code)**
+The project handout specifies adjacency, but does not define it. True adjacency is not achievable from the postal code string itself without an external geographic table. The assumption is that a postal code's first three characters are within the same region, so this covers both adjacent postal codes, and the postal code specified itself.
+
+**Decision 23 - Q3 is an exact string match on `venue.address`**
+The project handout calls it an "exact search". If nothing matches exactly, the query returns zero rows and the app says so rather than guessing a near match.
 
 ## Q6 - Seat-map summary
 
