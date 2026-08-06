@@ -9,3 +9,6 @@ out/
 
 # --- Local DB config (each dev keeps their own; copy from config.properties.example) ---
 config.properties
+# --- Report build intermediates ---
+report/report.html
+report/report_full.md
