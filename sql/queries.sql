@@ -41,7 +41,7 @@ ORDER BY distance_km ASC;
 
 
 -- Q2: performances in the same or adjacent postal code. "Adjacent" =
--- same first-3-characters (Canadian FSA); an exact match is a special case
+-- same first-2-characters (Canadian FSA); an exact match is a special case
 -- of this, so one condition covers both halves of the spec's requirement.
 -- Binds: postal_code, postal_code.
 SELECT p.performance_id, e.title, v.name AS venue, v.postal_code, v.city,
