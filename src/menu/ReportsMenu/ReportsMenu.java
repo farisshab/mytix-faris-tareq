@@ -15,10 +15,15 @@ public class ReportsMenu {
             String choice = scanner.nextLine().trim();
             ConsoleUtil.clear();
             switch (choice) {
-                case "1", "2", "3", "5", "6", "9" -> System.out.println("TODO: R" + choice);
+                case "1" -> ReportsOps.r1(conn, scanner);
+                case "2" -> ReportsOps.r2(conn, scanner);
+                case "3" -> ReportsOps.r3(conn, scanner);
                 case "4" -> ReportsOps.r4(conn, scanner);
+                case "5" -> ReportsOps.r5(conn, scanner);
+                case "6" -> ReportsOps.r6(conn, scanner);
                 case "7" -> ReportsOps.r7(conn, scanner);
                 case "8" -> ReportsOps.r8(conn, scanner);
+                case "9" -> System.out.println("TODO: R" + choice);
                 case "0" -> back = true;
                 default -> System.out.println("Unrecognized option.");
             }

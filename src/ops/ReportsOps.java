@@ -20,6 +20,348 @@ public class ReportsOps {
 
     private static final DateTimeFormatter DT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
+    // R1: Total no. of tickets sold and gross revnue in a specific date range by city or by venue
+    public static void r1(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("""
+                
+            === R1 Revenue ===
+            1) By city
+            2) By venue within a city
+            > """);
+        String choice = scanner.nextLine().trim();
+        switch (choice) {
+            case "1" -> r1ByCity(conn, scanner);
+            case "2" -> r1ByVenue(conn, scanner);
+            default -> System.out.println("Unrecognized option.");
+        }
+    }
+
+    private static void r1ByCity(Connection conn, Scanner scanner) throws SQLException {
+        LocalDateTime from = promptDateTime(scanner, "From date (yyyy-MM-dd HH:mm) > ");
+        if (from == null) {
+            return;
+        }
+        LocalDateTime to = promptDateTime(scanner, "To date (yyyy-MM-dd HH:mm) > ");
+        if (to == null) {
+            return;
+        }
+
+        String sql =
+            "SELECT v.city, COUNT(*) AS tickets_sold, SUM(t.face_value) AS gross_revenue " +
+            "FROM ticket t " +
+            "JOIN orders o ON o.order_id=t.order_id " +
+            "JOIN performance p ON p.performance_id=o.performance_id " +
+            "JOIN venue v ON v.venue_id=p.venue_id " +
+            "WHERE t.status='ACTIVE' AND o.order_datetime >= ? AND o.order_datetime < ? " +
+            "GROUP BY v.city ORDER BY gross_revenue DESC";
+        
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setObject(1, from);
+                stmt.setObject(2, to);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    System.out.println("\n--- Tickets sold & revenue by city ---");
+                    boolean any = false;
+                    while (rs.next()) {
+                        any = true;
+                        System.out.printf("%-18s %5d tickets   $%.2f%n",
+                            rs.getString("city"),
+                            rs.getInt("tickets_sold"),
+                            rs.getBigDecimal("gross_revenue")
+                        );
+                    }
+                    if (!any) {
+                        System.out.println("(no active tickets sold in that range)");
+                    }
+                }
+            }
+    }
+
+    private static void r1ByVenue(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("City > ");
+        String city = scanner.nextLine().trim();
+        LocalDateTime from = promptDateTime(scanner, "From date (yyyy-MM-dd HH:mm) > ");
+        if (from == null) {
+            return;
+        }
+        LocalDateTime to = promptDateTime(scanner, "To date (yyyy-MM-dd HH:mm) > ");
+        if (to == null) {
+            return;
+        }
+
+        String sql =
+            "SELECT v.venue_id, v.name, COUNT(*) AS tickets_sold, SUM(t.face_value) AS gross_revenue " +
+            "FROM ticket t " +
+            "JOIN orders o ON o.order_id=t.order_id " +
+            "JOIN performance p ON p.performance_id=o.performance_id " +
+            "JOIN venue v ON v.venue_id=p.venue_id " +
+            "WHERE t.status='ACTIVE' AND v.city=? AND o.order_datetime >= ? AND o.order_datetime < ? " +
+            "GROUP BY v.venue_id, v.name ORDER BY gross_revenue DESC";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, city);
+            stmt.setObject(2, from);
+            stmt.setObject(3, to);
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Tickets sold & revenue by venue in " + city + " ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("[%d] %-28s %5d tickets   $%.2f%n",
+                        rs.getInt("venue_id"),
+                        rs.getString("name"),
+                        rs.getInt("tickets_sold"),
+                        rs.getBigDecimal("gross_revenue")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no active tickets sold there in that range)");
+                }
+            }
+        }
+    }
+
+    // R2: Total no. of events and performances per segment and genre, per country, per country and city, as well as per country, city, and venue
+    public static void r2(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("""
+                
+            === R2 Event/performance counts ===
+            1) Per segment & genre
+            2) Per country
+            3) Per country & city
+            4) Per country, city, & venue
+            > """);
+        
+        String choice = scanner.nextLine().trim();
+        switch (choice) {
+            case "1" -> r2BySegmentGenre(conn);
+            case "2" -> r2ByCountry(conn);
+            case "3" -> r2ByCountryCity(conn);
+            case "4" -> r2ByCountryCityVenue(conn);
+            default -> System.out.println("Unrecognized option.");
+        }
+    }
+
+    private static void r2BySegmentGenre(Connection conn) throws SQLException {
+        String sql =
+            "SELECT sg.segment_name, g.genre_name, COUNT(DISTINCT e.event_id) AS events, COUNT(p.performance_id) AS performances " +
+            "FROM event e " +
+            "JOIN genre g ON g.genre_id=e.genre_id " +
+            "JOIN segment sg ON sg.segment_id=g.segment_id " +
+            "LEFT JOIN performance p ON p.event_id=e.event_id " +
+            "GROUP BY sg.segment_name, g.genre_name ORDER BY sg.segment_name, g.genre_name";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Events & performances per segement/genre ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%-12s %-18s %4d events   %5d performances%n",
+                        rs.getString("segment_name"),
+                        rs.getString("genre_name"),
+                        rs.getInt("events"),
+                        rs.getInt("performances")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no events found)");
+                }
+            }
+        }
+    }
+
+    private static void r2ByCountry(Connection conn) throws SQLException {
+        String sql =
+            "SELECT v.country, COUNT(DISTINCT e.event_id) AS events, COUNT(p.performance_id) AS performances " +
+            "FROM performance p JOIN venue v ON v.venue_id=p.venue_id JOIN event e ON e.event_id=p.event_id " +
+            "GROUP BY v.country ORDER BY v.country";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Events & performances per country ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%-10s %4d events   %5d performances%n",
+                        rs.getString("country"),
+                        rs.getInt("events"),
+                        rs.getInt("performances")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no performances found)");
+                }
+            }
+        }
+    }
+
+    private static void r2ByCountryCity(Connection conn) throws SQLException {
+        String sql =
+            "SELECT v.country, v.city, COUNT(DISTINCT e.event_id) AS events, COUNT(p.performance_id) AS performances " +
+            "FROM performance p JOIN venue v ON v.venue_id=p.venue_id JOIN event e ON e.event_id=p.event_id " +
+            "GROUP BY v.country, v.city ORDER BY v.country, v.city";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Events & performances per country/city ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%-10s %-18s %4d events   %5d performances%n",
+                        rs.getString("country"),
+                        rs.getString("city"),
+                        rs.getInt("events"),
+                        rs.getInt("performances")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no performances found)");
+                }
+            }
+        }
+    }
+
+    private static void r2ByCountryCityVenue(Connection conn) throws SQLException {
+        String sql =
+            "SELECT v.country, v.city, v.venue_id, v.name, COUNT(DISTINCT e.event_id) AS events, COUNT(p.performance_id) AS performances " +
+            "FROM performance p JOIN venue v ON v.venue_id=p.venue_id JOIN event e ON e.event_id=p.event_id " +
+            "GROUP BY v.country, v.city, v.venue_id, v.name ORDER BY v.country, v.city, v.name";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Events & performances per country/city/venue ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%-10s %-16s [%d] %-24s %4d events   %5d performances%n",
+                        rs.getString("country"),
+                        rs.getString("city"),
+                        rs.getInt("venue_id"),
+                        rs.getString("name"),
+                        rs.getInt("events"),
+                        rs.getInt("performances")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no performances found)");
+                }
+            }
+        }
+    }
+
+    // R3: Rank organizers by gross revenue overall and per country (and refine it by city)
+    public static void r3(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("""
+                
+            === R3 Organizer revenue ranking ===
+            1) Overall
+            2) Per country
+            3) One city
+            > """);
+        
+        String choice = scanner.nextLine().trim();
+        switch (choice) {
+            case "1" -> r3Overall(conn);
+            case "2" -> r3PerCountry(conn);
+            case "3" -> r3ByCity(conn, scanner);
+            default -> System.out.println("Unrecognized option.");
+        }
+    }
+
+    private static void r3Overall(Connection conn) throws SQLException {
+        String sql =
+            "SELECT u.user_id AS organizer_id, u.full_name, SUM(t.face_value) AS gross_revenue, " +
+            "       DENSE_RANK() OVER (ORDER BY SUM(t.face_value) DESC) AS rnk " +
+            "FROM ticket t " +
+            "JOIN orders o ON o.order_id=t.order_id " +
+            "JOIN performance p ON p.performance_id=o.performance_id " +
+            "JOIN event e ON e.event_id=p.event_id " +
+            "JOIN users u ON u.user_id=e.organizer_id " +
+            "WHERE t.status='ACTIVE' " +
+            "GROUP BY u.user_id, u.full_name ORDER BY rnk, organizer_id";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Organizers by gross revenue ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%2d. [%d] %-24s $%,.2f%n",
+                        rs.getInt("rnk"),
+                        rs.getInt("organizer_id"),
+                        rs.getString("full_name"),
+                        rs.getBigDecimal("gross_revenue")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no revenue yet)");
+                }
+            }
+        }
+    }
+
+    private static void r3PerCountry(Connection conn) throws SQLException {
+        String sql =
+            "SELECT v.country, u.user_id AS organizer_id, u.full_name, SUM(t.face_value) AS gross_revenue, " +
+            "       DENSE_RANK() OVER (PARTITION BY v.country ORDER BY SUM(t.face_value) DESC) AS rnk " +
+            "FROM ticket t " +
+            "JOIN orders o ON o.order_id=t.order_id " +
+            "JOIN performance p ON p.performance_id=o.performance_id " +
+            "JOIN venue v ON v.venue_id=p.venue_id " +
+            "JOIN event e ON e.event_id=p.event_id " +
+            "JOIN users u ON u.user_id=e.organizer_id " +
+            "WHERE t.status='ACTIVE' " +
+            "GROUP BY v.country, u.user_id, u.full_name ORDER BY v.country, rnk, organizer_id";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Organizers by gross revenue, per country ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%-10s %2d. [%d] %-24s $%,.2f%n",
+                        rs.getString("country"),
+                        rs.getInt("rnk"),
+                        rs.getInt("organizer_id"),
+                        rs.getString("full_name"),
+                        rs.getBigDecimal("gross_revenue")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no revenue yet)");
+                }
+            }
+        }
+    }
+
+    private static void r3ByCity(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("City > ");
+        String city = scanner.nextLine().trim();
+        String sql =
+            "SELECT u.user_id AS organizer_id, u.full_name, SUM(t.face_value) AS gross_revenue, " +
+            "       DENSE_RANK() OVER (ORDER BY SUM(t.face_value) DESC) AS rnk " +
+            "FROM ticket t " +
+            "JOIN orders o ON o.order_id=t.order_id " +
+            "JOIN performance p ON p.performance_id=o.performance_id " +
+            "JOIN venue v ON v.venue_id=p.venue_id " +
+            "JOIN event e ON e.event_id=p.event_id " +
+            "JOIN users u ON u.user_id=e.organizer_id " +
+            "WHERE t.status='ACTIVE' AND v.city=? " +
+            "GROUP BY u.user_id, u.full_name ORDER BY rnk, organizer_id";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, city);
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Organizers by gross revenue in " + city + " ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%2d. [%d] %-24s $%,.2f%n",
+                        rs.getInt("rnk"),
+                        rs.getInt("organizer_id"),
+                        rs.getString("full_name"),
+                        rs.getBigDecimal("gross_revenue")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no revenue yet)");
+                }
+            }
+        }
+    }
+
     // R4: scalper flag (global thresholds, reported per city)
     public static void r4(Connection conn, Scanner scanner) throws SQLException {
         String sql =
@@ -51,6 +393,171 @@ public class ReportsOps {
                     rs.getInt("bought_in_city"), rs.getInt("listed_in_city"));
             }
             if (!any) System.out.println("(no customers cross the scalper thresholds)");
+        }
+    }
+
+    // R5: Rank customers by no. of orders in specific time period, and rank by no. of orders per city (for customers who have placed 2+ orders in the year)
+    public static void r5(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("""
+                
+            === R5 Customer order ranking ===
+            1) Overall, in a date range
+            2) Per city, past year, customers with >= 2 orders
+            > """);
+        
+        String choice = scanner.nextLine().trim();
+        switch (choice) {
+            case "1" -> r5Overall(conn, scanner);
+            case "2" -> r5PerCity(conn);
+            default -> System.out.println("Unrecognized option.");
+        }
+    }
+
+    private static void r5Overall(Connection conn, Scanner scanner) throws SQLException {
+        LocalDateTime from = promptDateTime(scanner, "From date (yyyy-MM-dd HH:mm) > ");
+        if (from == null) {
+            return;
+        }
+        LocalDateTime to = promptDateTime(scanner, "To date (yyyy-MM-dd HH:mm) > ");
+        if (to == null) {
+            return;
+        }
+
+        String sql =
+            "SELECT o.customer_id, u.full_name, COUNT(*) AS order_count, " +
+            "       DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) AS rnk " +
+            "FROM orders o JOIN users u ON u.user_id=o.customer_id " +
+            "WHERE o.order_datetime >= ? AND o.order_datetime < ? " +
+            "GROUP BY o.customer_id, u.full_name ORDER BY rnk, o.customer_id";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, from);
+            stmt.setObject(2, to);
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Customers by order count ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%2d. [%d] %-24s %d orders%n",
+                        rs.getInt("rnk"),
+                        rs.getInt("customer_id"),
+                        rs.getString("full_name"),
+                        rs.getInt("order_count")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no orders in that range)");
+                }
+            }
+        }
+    }
+
+    private static void r5PerCity(Connection conn) throws SQLException {
+        String sql =
+            "SELECT v.city, o.customer_id, u.full_name, COUNT(*) AS order_count, " +
+            "       DENSE_RANK() OVER (PARTITION BY v.city ORDER BY COUNT(*) DESC) AS rnk " +
+            "FROM orders o " +
+            "JOIN performance p ON p.performance_id=o.performance_id " +
+            "JOIN venue v ON v.venue_id=p.venue_id " +
+            "JOIN users u ON u.user_id=o.customer_id " +
+            "WHERE o.order_datetime >= NOW() - INTERVAL 1 YEAR " +
+            "GROUP BY v.city, o.customer_id, u.full_name " +
+            "HAVING COUNT(*) >= 2 " +
+            "ORDER BY v.city, rnk, o.customer_id";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Customers by order count, per city (past year, >=2 orders) ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%-14s %2d. [%d] %-24s %d orders%n",
+                        rs.getString("city"),
+                        rs.getInt("rnk"),
+                        rs.getInt("customer_id"),
+                        rs.getString("full_name"),
+                        rs.getInt("order_count")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no customers meet the threshold)");
+                }
+            }
+        }
+    }
+
+    // R6: Report the customers with the largest number of cancelled tickets and the organizers with the largest number of cancelled performances within a year
+    public static void r6(Connection conn, Scanner scanner) throws SQLException {
+        System.out.print("""
+                
+            === R6 Cancellations (past year) ===
+            1) Customers with most cancelled tickets
+            2) Organizers with most cancelled performances
+            > """);
+        String choice = scanner.nextLine().trim();
+        switch (choice) {
+            case "1" -> r6Customers(conn);
+            case "2" -> r6Organizers(conn);
+            default -> System.out.println("Unrecognized option.");
+        }
+    }
+
+    private static void r6Customers(Connection conn) throws SQLException {
+        // Follows the CURRENT owner, not the original purchaser
+        String sql =
+            "SELECT tow.owner_id AS customer_id, u.full_name, COUNT(*) AS cancelled_count, " +
+            "       DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) AS rnk " +
+            "FROM ticket t " +
+            "JOIN ticket_ownership tow ON tow.ticket_id=t.ticket_id " +
+            "JOIN users u ON u.user_id=tow.owner_id " +
+            "WHERE t.status='CANCELLED' AND t.cancel_type='CUSTOMER' " +
+            "  AND t.cancelled_at >= NOW() - INTERVAL 1 YEAR " +
+            "  AND tow.acquired_at = (SELECT MAX(tow2.acquired_at) FROM ticket_ownership tow2 WHERE tow2.ticket_id=t.ticket_id) " +
+            "GROUP BY tow.owner_id, u.full_name ORDER BY rnk, customer_id";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Customers with most cancelled tickets (past year) ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%2d. [%d] %-24s %d cancelled%n",
+                        rs.getInt("rnk"),
+                        rs.getInt("customer_id"),
+                        rs.getString("full_name"),
+                        rs.getInt("cancelled_count")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no customer cancellations in the past year)");
+                }
+            }
+        }
+    }
+
+    private static void r6Organizers(Connection conn) throws SQLException {
+        String sql =
+            "SELECT e.organizer_id, u.full_name, COUNT(*) AS cancelled_count, " +
+            "       DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) AS rnk " +
+            "FROM performance p " +
+            "JOIN event e ON e.event_id=p.event_id " +
+            "JOIN users u ON u.user_id=e.organizer_id " +
+            "WHERE p.status='CANCELLED' AND p.cancelled_at >= NOW() - INTERVAL 1 YEAR " +
+            "GROUP BY e.organizer_id, u.full_name ORDER BY rnk, organizer_id";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            try (ResultSet rs = stmt.executeQuery()) {
+                System.out.println("\n--- Organizers with most cancelled performances (past year) ---");
+                boolean any = false;
+                while (rs.next()) {
+                    any = true;
+                    System.out.printf("%2d. [%d] %-24s %d cancelled%n",
+                        rs.getInt("rnk"),
+                        rs.getInt("organizer_id"),
+                        rs.getString("full_name"),
+                        rs.getInt("cancelled_count")
+                    );
+                }
+                if (!any) {
+                    System.out.println("(no performance cancellations in the past year)");
+                }
+            }
         }
     }
 
@@ -250,6 +757,11 @@ public class ReportsOps {
                 if (!any) System.out.println("(no completed resales in that range)");
             }
         }
+    }
+    
+    // R9: Presents for each event the set of most popular NOUN phrases associated with the event.
+    public static void r9(Connection conn, Scanner scanner) throws SQLException {
+
     }
 
     private static LocalDateTime promptDateTime(Scanner scanner, String prompt) {
