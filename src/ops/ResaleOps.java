@@ -314,7 +314,7 @@ public class ResaleOps {
      * @param listings
      */
     private static void printOwnedListings(List<OwnedListing> listings) {
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:MM");
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         System.out.println("\n--- Your Active Listings ---");
         for (OwnedListing l : listings) {
             String seatInfo = describeSeat(l.sectionName(), l.rowName(), l.seatNumber());
