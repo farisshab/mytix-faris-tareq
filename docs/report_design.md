@@ -20,6 +20,38 @@ fully refunded (schema decision 23), so counting its money would overstate what 
 organizer actually kept, and its seat is back in the pool so it is not really sold.
 Same rule everywhere it comes up: R1 and R3 on Faris's side, R7 on mine.
 
+## R1: Revenue by city / by venue
+Two variants, same shared rule as everywhere else: "sold" and "gross revenue"
+count active tickets only (a cancelled ticket was refunded, so its money
+doesn't really belong to the organizer)
+
+- The date range filters `orders.order_datetime` (when the sale happened),
+  not the performance date. This shows when the money actually came in, not
+  when the show happens.
+- By-venue is scoped to one city at a time (prompted)
+
+## R2: Event & performance counts
+
+Four groupings: segment+genre, country, country+city, and country+city+venue.
+Segment/genre is an event-level attribute (`event.genre_id`), so that
+grouping counts every performance of a matching event regardless of where it happens.
+The other three are venue-location groupings, joined performance -> venue.
+
+- Events: `COUNT(DISTINCT event_id)`. Performances: a plain row count, since
+  every performance belongs to exactly one venue and can't be double-counted.
+- Worth knowing, not a bug: event counts do NOT sum cleanly from a more specific grouping
+  to a more broad one, at ANY level of this hierarchy (city -> country, or country -> everything).
+  The rule is: `SUM(events per subgroup) >= events in the parent group`, and the gap is the count
+  of events that span more than one subgroup.
+    - For example, country level (verified on the real data): 24 total distinct events vs. 17 (Canada) + 13 (USA) = 30.
+      A gap of 6 events touring across both countries (e.g. Arctic Monkeys: World Tour has performances in both).
+- Cancelled performances are still counted here.
+
+## R3: Organizer revenue ranking
+
+Same active-tickets-only revenue definition as R1 (and R7 on Tareq's side).
+No date range.
+
 
 ## R4: Scalper flag
 
@@ -41,6 +73,27 @@ bought, showing their in-city counts next to the totals.
   per-city threshold.
 - "Purchased" is a primary-market ticket (from an `orders` row). Past year is the
   order date within a rolling 365 days. City is the venue's city.
+
+## R5: Customer order ranking
+
+- Order count is a plain count of `orders` rows -- primary market only.
+  Note: A resale purchase never created an `orders` row (per design decision).
+- Each order maps to exactly one city via `orders.performance_id ->
+  performance.venue_id -> venue.city`, so per-city counting can't double-count
+  an order
+- An order counts even if its tickets were later cancelled
+
+## R6: Cancellations, past year
+
+- **Customers with most cancelled tickets**: attributed to the ticket's CURRENT owner
+  (latest row in `ticket_ownership`), not whoever originally placed the order.
+  Since the right to cancel follows the current owner, the ticket cancellation
+  should count towards the owner.
+- Only `cancel_type = 'CUSTOMER'` counts, because the *organizer* cancelling a
+  performance should not count toward the customer.
+- **Organizers with most cancelled performances**: staightforward --
+  `performance.status = 'CANCELLED'` within the past year, grouped by
+  `event.organizer_id`.
 
 
 ## R7: Sell-through

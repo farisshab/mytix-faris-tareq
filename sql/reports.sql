@@ -4,6 +4,115 @@
 -- docs/report_design.md. R1, R2, R3, R5, R6, R9 are Faris's.
 --
 
+-- R1: Revenue by city / by venue. "Sold"/revenue count active tickets only
+-- (shared rule, see top). Date range filters orders.order_datetime (sale
+-- date), not the performance date.
+
+-- R1a: by city (parameters: from, to).
+SELECT v.city, COUNT(*) AS tickets_sold, SUM(t.face_value) AS gross_revenue
+FROM ticket t
+JOIN orders o      ON o.order_id = t.order_id
+JOIN performance p ON p.performance_id = o.performance_id
+JOIN venue v       ON v.venue_id = p.venue_id
+WHERE t.status = 'ACTIVE' AND o.order_datetime >= ? AND o.order_datetime < ?
+GROUP BY v.city
+ORDER BY gross_revenue DESC;
+
+-- R1b: by venue within one city (parameters: city, from, to).
+SELECT v.venue_id, v.name, COUNT(*) AS tickets_sold, SUM(t.face_value) AS gross_revenue
+FROM ticket t
+JOIN orders o      ON o.order_id = t.order_id
+JOIN performance p ON p.performance_id = o.performance_id
+JOIN venue v       ON v.venue_id = p.venue_id
+WHERE t.status = 'ACTIVE' AND v.city = ? AND o.order_datetime >= ? AND o.order_datetime < ?
+GROUP BY v.venue_id, v.name
+ORDER BY gross_revenue DESC;
+
+
+-- R2: Event & performance counts. Segment/genre is event-level so it counts
+-- every performance of a matching event; the other three group by venue
+-- location. Events don't sum cleanly across country/city/venue groupings for
+-- touring events (a performance in two countries counts toward both) --
+-- performance counts always do, since a performance has exactly one venue.
+
+-- R2a: per segment & genre.
+SELECT sg.segment_name, g.genre_name,
+       COUNT(DISTINCT e.event_id) AS events, COUNT(p.performance_id) AS performances
+FROM event e
+JOIN genre g   ON g.genre_id = e.genre_id
+JOIN segment sg ON sg.segment_id = g.segment_id
+LEFT JOIN performance p ON p.event_id = e.event_id
+GROUP BY sg.segment_name, g.genre_name
+ORDER BY sg.segment_name, g.genre_name;
+
+-- R2b: per country.
+SELECT v.country, COUNT(DISTINCT e.event_id) AS events, COUNT(p.performance_id) AS performances
+FROM performance p
+JOIN venue v ON v.venue_id = p.venue_id
+JOIN event e ON e.event_id = p.event_id
+GROUP BY v.country
+ORDER BY v.country;
+
+-- R2c: per country & city.
+SELECT v.country, v.city, COUNT(DISTINCT e.event_id) AS events, COUNT(p.performance_id) AS performances
+FROM performance p
+JOIN venue v ON v.venue_id = p.venue_id
+JOIN event e ON e.event_id = p.event_id
+GROUP BY v.country, v.city
+ORDER BY v.country, v.city;
+
+-- R2d: per country, city & venue.
+SELECT v.country, v.city, v.venue_id, v.name,
+       COUNT(DISTINCT e.event_id) AS events, COUNT(p.performance_id) AS performances
+FROM performance p
+JOIN venue v ON v.venue_id = p.venue_id
+JOIN event e ON e.event_id = p.event_id
+GROUP BY v.country, v.city, v.venue_id, v.name
+ORDER BY v.country, v.city, v.name;
+
+
+-- R3: Organizer revenue ranking. Same active-tickets-only revenue as R1/R7.
+-- No date range -- the spec doesn't ask for one here (unlike R1). Ties use
+-- DENSE_RANK, same convention as R5/R6.
+
+-- R3a: overall.
+SELECT u.user_id AS organizer_id, u.full_name, SUM(t.face_value) AS gross_revenue,
+       DENSE_RANK() OVER (ORDER BY SUM(t.face_value) DESC) AS rnk
+FROM ticket t
+JOIN orders o      ON o.order_id = t.order_id
+JOIN performance p ON p.performance_id = o.performance_id
+JOIN event e       ON e.event_id = p.event_id
+JOIN users u       ON u.user_id = e.organizer_id
+WHERE t.status = 'ACTIVE'
+GROUP BY u.user_id, u.full_name
+ORDER BY rnk, organizer_id;
+
+-- R3b: per country (ranks reset per country).
+SELECT v.country, u.user_id AS organizer_id, u.full_name, SUM(t.face_value) AS gross_revenue,
+       DENSE_RANK() OVER (PARTITION BY v.country ORDER BY SUM(t.face_value) DESC) AS rnk
+FROM ticket t
+JOIN orders o      ON o.order_id = t.order_id
+JOIN performance p ON p.performance_id = o.performance_id
+JOIN venue v       ON v.venue_id = p.venue_id
+JOIN event e       ON e.event_id = p.event_id
+JOIN users u       ON u.user_id = e.organizer_id
+WHERE t.status = 'ACTIVE'
+GROUP BY v.country, u.user_id, u.full_name
+ORDER BY v.country, rnk, organizer_id;
+
+-- R3c: one city (parameter: city).
+SELECT u.user_id AS organizer_id, u.full_name, SUM(t.face_value) AS gross_revenue,
+       DENSE_RANK() OVER (ORDER BY SUM(t.face_value) DESC) AS rnk
+FROM ticket t
+JOIN orders o      ON o.order_id = t.order_id
+JOIN performance p ON p.performance_id = o.performance_id
+JOIN venue v       ON v.venue_id = p.venue_id
+JOIN event e       ON e.event_id = p.event_id
+JOIN users u       ON u.user_id = e.organizer_id
+WHERE t.status = 'ACTIVE' AND v.city = ?
+GROUP BY u.user_id, u.full_name
+ORDER BY rnk, organizer_id;
+
 
 -- R4: Scalper flag (global thresholds, reported per city).
 -- A customer qualifies on their total past-year activity: bought at least ten
@@ -37,6 +146,57 @@ JOIN scalper s ON s.customer_id = b.customer_id
 JOIN users u   ON u.user_id = b.customer_id
 GROUP BY b.city, b.customer_id, u.full_name, s.bought_total, s.listed_total
 ORDER BY b.city, s.listed_total DESC, b.customer_id;
+
+-- R5: Customer order ranking. Plain orders count, primary market only
+-- (resale never creates an orders row). An order counts even if its tickets
+-- were later cancelled -- this is about ordering activity, not revenue.
+
+-- R5a: overall, in a date range (parameters: from, to).
+SELECT o.customer_id, u.full_name, COUNT(*) AS order_count,
+       DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) AS rnk
+FROM orders o
+JOIN users u ON u.user_id = o.customer_id
+WHERE o.order_datetime >= ? AND o.order_datetime < ?
+GROUP BY o.customer_id, u.full_name
+ORDER BY rnk, o.customer_id;
+
+-- R5b: per city, past year, customers with >= 2 orders that year.
+SELECT v.city, o.customer_id, u.full_name, COUNT(*) AS order_count,
+       DENSE_RANK() OVER (PARTITION BY v.city ORDER BY COUNT(*) DESC) AS rnk
+FROM orders o
+JOIN performance p ON p.performance_id = o.performance_id
+JOIN venue v       ON v.venue_id = p.venue_id
+JOIN users u       ON u.user_id = o.customer_id
+WHERE o.order_datetime >= NOW() - INTERVAL 1 YEAR
+GROUP BY v.city, o.customer_id, u.full_name
+HAVING COUNT(*) >= 2
+ORDER BY v.city, rnk, o.customer_id;
+
+-- R6: Cancellations, past year. Customers attributed by CURRENT owner
+-- (design_decisions.md Decision 28), cancel_type = 'CUSTOMER' only (a
+-- performance-cancellation-induced cancel isn't the customer's own choice).
+
+-- R6a: customers with most cancelled tickets.
+SELECT tow.owner_id AS customer_id, u.full_name, COUNT(*) AS cancelled_count,
+       DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) AS rnk
+FROM ticket t
+JOIN ticket_ownership tow ON tow.ticket_id = t.ticket_id
+JOIN users u ON u.user_id = tow.owner_id
+WHERE t.status = 'CANCELLED' AND t.cancel_type = 'CUSTOMER'
+  AND t.cancelled_at >= NOW() - INTERVAL 1 YEAR
+  AND tow.acquired_at = (SELECT MAX(tow2.acquired_at) FROM ticket_ownership tow2 WHERE tow2.ticket_id = t.ticket_id)
+GROUP BY tow.owner_id, u.full_name
+ORDER BY rnk, customer_id;
+
+-- R6b: organizers with most cancelled performances.
+SELECT e.organizer_id, u.full_name, COUNT(*) AS cancelled_count,
+       DENSE_RANK() OVER (ORDER BY COUNT(*) DESC) AS rnk
+FROM performance p
+JOIN event e ON e.event_id = p.event_id
+JOIN users u ON u.user_id = e.organizer_id
+WHERE p.status = 'CANCELLED' AND p.cancelled_at >= NOW() - INTERVAL 1 YEAR
+GROUP BY e.organizer_id, u.full_name
+ORDER BY rnk, organizer_id;
 
 
 -- R7: Sell-through. Shared building block first: for every assigned section of a
