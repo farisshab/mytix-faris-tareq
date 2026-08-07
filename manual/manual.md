@@ -216,7 +216,11 @@ specification's one stated exception.
   performance, or sold-out/under-a-quarter performances by city for one month.
 - **R8 - Resale report** - a choice of per-event resale statistics (all time), or
   the top ten events by resale volume in a chosen date range.
-- **R9 - Event noun phrases**
+- **R9 - Event noun phrases** - for each event with reviews, the most popular noun
+  phrases drawn from its review comments. Without a part-of-speech tagger, noun
+  phrases are approximated as frequent runs of content words (stopwords removed),
+  which for review prose are mostly nouns and their modifiers; the output could seed
+  a word cloud per event.
 
 
 ## 10. Organizer Toolkit
@@ -234,7 +238,8 @@ Available to either role.
 
 ## 11. System limitations
 
-- R9 is not implemented. It currently shows as TODO: within the interface
+- R9's noun phrases come from a stopword-and-frequency heuristic, not a real
+  part-of-speech parser, so an occasional adjective or verb slips into the results.
 - Sign-in is email-only, with no password or other credential; anyone who knows or
   guesses an email address in the system can sign in as that user.
 - Payment information is entirely fabricated and never validated against a real
@@ -254,7 +259,7 @@ Available to either role.
 
 ## 12. Possible improvements
 
-- Wire R9 into the Reports menu so it is reachable like R1-R8.
+- Upgrade R9 to a real part-of-speech tagger for cleaner noun-phrase extraction.
 - Add real authentication (a password, at minimum) rather than email-only sign-in.
 - Add pagination or a result-count cap to long-running query/report output.
 - Extend the organizer toolkit's extra-credit revenue-change estimate (a

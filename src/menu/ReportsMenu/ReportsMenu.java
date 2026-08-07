@@ -23,7 +23,7 @@ public class ReportsMenu {
                 case "6" -> ReportsOps.r6(conn, scanner);
                 case "7" -> ReportsOps.r7(conn, scanner);
                 case "8" -> ReportsOps.r8(conn, scanner);
-                case "9" -> System.out.println("TODO: R" + choice);
+                case "9" -> ReportsOps.r9(conn, scanner);
                 case "0" -> back = true;
                 default -> System.out.println("Unrecognized option.");
             }

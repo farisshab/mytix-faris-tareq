@@ -7,7 +7,15 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 
 import util.InputUtil;
 
@@ -760,8 +768,98 @@ public class ReportsOps {
     }
     
     // R9: Presents for each event the set of most popular NOUN phrases associated with the event.
-    public static void r9(Connection conn, Scanner scanner) throws SQLException {
+    // R9: most popular noun phrases per event, from the review comments.
+    // No POS tagger or external library: we approximate noun phrases as runs of
+    // "content" words (everything that isn't a stopword), which for review prose is
+    // mostly nouns and their modifiers ("opening act", "sound quality"). We count
+    // 1-to-3 word phrases within those runs, rank by popularity (with a bump for
+    // longer phrases), and drop phrases already covered by a longer one shown above.
+    // Simple and documented, which the spec allows; it is enough to seed a word cloud.
+    private static final Set<String> STOPWORDS = new HashSet<>(Arrays.asList(
+        "a","an","the","and","or","but","of","to","in","on","at","for","with","was","were","is","are","be","been",
+        "being","it","its","our","we","us","my","your","their","they","them","he","she","his","her","this","that",
+        "these","those","up","out","off","down","before","after","near","still","so","as","had","has","have","having",
+        "made","make","get","got","than","then","there","here","very","just","really","too","also","from","by","into",
+        "over","under","about","all","any","some","more","most","no","not","did","do","does","would","could","should",
+        "will","can","if","when","while","which","who","what","how","because","though","although","been","were","what",
+        "never","surprisingly","warmed","stole","sat","worth","kept"));
 
+    public static void r9(Connection conn, Scanner scanner) throws SQLException {
+        String sql =
+            "SELECT p.event_id, e.title, r.comment_text " +
+            "FROM review r " +
+            "JOIN performance p ON p.performance_id = r.performance_id " +
+            "JOIN event e ON e.event_id = p.event_id " +
+            "WHERE r.comment_text IS NOT NULL AND r.comment_text <> '' " +
+            "ORDER BY p.event_id";
+
+        Map<Integer, String> titles = new LinkedHashMap<>();
+        Map<Integer, Map<String, Integer>> phrasesByEvent = new LinkedHashMap<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                int eventId = rs.getInt("event_id");
+                titles.putIfAbsent(eventId, rs.getString("title"));
+                extractPhrases(rs.getString("comment_text"),
+                    phrasesByEvent.computeIfAbsent(eventId, k -> new HashMap<>()));
+            }
+        }
+
+        if (phrasesByEvent.isEmpty()) {
+            System.out.println("\n(no review comments to analyze)");
+            return;
+        }
+
+        System.out.println("\n--- R9: Most popular noun phrases per event ---");
+        for (Map.Entry<Integer, Map<String, Integer>> ev : phrasesByEvent.entrySet()) {
+            List<Map.Entry<String, Integer>> ranked = new ArrayList<>(ev.getValue().entrySet());
+            ranked.sort((x, y) -> {
+                int sx = x.getValue() * wordCount(x.getKey());   // popularity, weighted by length
+                int sy = y.getValue() * wordCount(y.getKey());
+                if (sx != sy) return Integer.compare(sy, sx);
+                return x.getKey().compareTo(y.getKey());
+            });
+            System.out.printf("%n[%d] %s%n", ev.getKey(), titles.get(ev.getKey()));
+            List<String> shown = new ArrayList<>();
+            for (Map.Entry<String, Integer> pe : ranked) {
+                String phrase = pe.getKey();
+                boolean covered = false;                          // skip if a shown phrase already contains it
+                for (String s : shown) {
+                    if ((" " + s + " ").contains(" " + phrase + " ")) { covered = true; break; }
+                }
+                if (covered) continue;
+                System.out.printf("   %-30s (%d)%n", phrase, pe.getValue());
+                shown.add(phrase);
+                if (shown.size() >= 8) break;
+            }
+        }
+    }
+
+    private static int wordCount(String phrase) {
+        return (int) phrase.chars().filter(c -> c == ' ').count() + 1;
+    }
+
+    // Count every 1-to-3 word phrase that falls inside a run of content words.
+    // We split on sentence and clause punctuation first so a phrase never spans a
+    // period or comma, then break runs on stopwords within each clause.
+    private static void extractPhrases(String text, Map<String, Integer> counts) {
+        if (text == null) return;
+        for (String clause : text.toLowerCase().split("[.,;:!?]+")) {
+            String[] tokens = clause.replaceAll("[^a-z]+", " ").trim().split("\\s+");
+            List<String> run = new ArrayList<>();
+            for (int i = 0; i <= tokens.length; i++) {
+                boolean isContent = i < tokens.length && tokens[i].length() >= 3 && !STOPWORDS.contains(tokens[i]);
+                if (isContent) {
+                    run.add(tokens[i]);
+                } else {
+                    for (int len = 1; len <= 3; len++) {
+                        for (int start = 0; start + len <= run.size(); start++) {
+                            counts.merge(String.join(" ", run.subList(start, start + len)), 1, Integer::sum);
+                        }
+                    }
+                    run.clear();
+                }
+            }
+        }
     }
 
     private static LocalDateTime promptDateTime(Scanner scanner, String prompt) {
