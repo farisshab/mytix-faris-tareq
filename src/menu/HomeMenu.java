@@ -40,8 +40,20 @@ public class HomeMenu {
                         }
                     }
                     case "4" -> QueriesMenu.listMenu(conn, scanner);
-                    case "5" -> ReportsMenu.listMenu(conn, scanner);
-                    case "6" -> OrganizerToolkitMenu.listMenu(conn, scanner);
+                    case "5" -> {
+                        if (session.isCustomer()) {
+                            System.out.println("This option is unavailable for customers.");
+                        } else {
+                            ReportsMenu.listMenu(conn, scanner);
+                        }
+                    }
+                    case "6" -> {
+                        if (session.isCustomer()) {
+                            System.out.println("This option is unavailable for customers.");
+                        } else {
+                            OrganizerToolkitMenu.listMenu(conn, scanner);
+                        }
+                    }
                     case "0" -> running = false;
                     default -> System.out.println("Unrecognized option.");
                 }

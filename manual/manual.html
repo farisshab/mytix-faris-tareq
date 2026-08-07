@@ -217,7 +217,7 @@
 <p><strong>Group members</strong> - Tareq Abousherif (1007977824) - Faris Shabaytah (1011300986)</p>
 <h2 id="overview">1. Overview</h2>
 <p>This manual explains how to build, run, and use MyTix from the command line, walks through every operation, query, and report reachable from the interface, and closes with the system’s known limitations and possible improvements. For the conceptual design, the ER diagram, the relational schema, and the normal-form justification, see <code>report.pdf</code>.</p>
-<p>MyTix is a single text-based interface shared by customers and organizers. Which menus are available depends on the role of whoever is signed in: a customer sees Customer Operations and not Organizer Operations, and vice versa. Account management, search queries, reports, and the organizer toolkit are available to either role.</p>
+<p>MyTix is a single text-based interface shared by customers and organizers. Which menus are available depends on the role of whoever is signed in: a customer sees Customer Operations and not Organizer Operations, and vice versa. Account management and search queries are available to either role. Reports and the organizer toolkit are organizer-only, since they are operator tools (revenue rankings, sell-through, pricing suggestions) that a customer has no need for; a customer who selects them is told the option is unavailable.</p>
 <h2 id="getting-started">2. Getting started</h2>
 <p><strong>Prerequisites:</strong> JDK 17 or newer, and MySQL 8 running locally.</p>
 <p><strong>One-time setup</strong>, from the repository root:</p>
@@ -235,6 +235,7 @@
 1) Sign in
 2) Create an account</code></pre>
 <p><strong>Sign in</strong> asks only for an email address; there is no password. If the email matches an active (non-deleted) account, you are signed in as that user, with whichever role (customer or organizer) the account was created with.</p>
+<p><strong>Sample logins</strong> (from the loaded data, for trying the app out): <code>liam.roy1@example.com</code> is an organizer and <code>harper.khan7@example.com</code> is a customer. Any email in <code>data/users.csv</code> works; these are just two convenient ones.</p>
 <p><strong>Create an account</strong> asks for a role (customer or organizer), full name, address, email, and date of birth (must be 18 or older). A customer account also collects a credit card (card number, cardholder name, expiry month and year); this is fully fabricated data, never validated against a real payment network, per the project specification. If the email belongs to a previously deleted account, you are offered the option to reactivate it with its original information rather than create a duplicate.</p>
 <p>Once signed in, you land on the Home Menu, which stays available until you choose Exit or delete your own account (which signs you out and returns you to this welcome screen).</p>
 <h2 id="home-menu">4. Home Menu</h2>
@@ -243,8 +244,8 @@
 2) Customer Operations   (customers only)
 3) Organizer Operations  (organizers only)
 4) Queries
-5) Reports
-6) Organizer Toolkit
+5) Reports               (organizers only)
+6) Organizer Toolkit     (organizers only)
 0) Exit</code></pre>
 <p>Sections 5-10 below cover each of these in turn.</p>
 <h2 id="account-management">5. Account Management</h2>
@@ -292,7 +293,7 @@
 <li><strong>Q7 - Best available seats</strong> - a performance, a desired ticket count, and an optional budget; finds that many consecutive seats in one row at the lowest total price.</li>
 </ul>
 <h2 id="reports">9. Reports</h2>
-<p>Available to either role. All nine are pure SQL except R9, per the project specification’s one stated exception.</p>
+<p>Available to organizers only. All nine are pure SQL except R9, per the project specification’s one stated exception.</p>
 <ul>
 <li><strong>R1 - Tickets sold &amp; revenue by city</strong> - a date range, then a choice of grouping by city or by venue within one chosen city. Counts active tickets only; a cancelled ticket was refunded, so its money isn’t counted as revenue.</li>
 <li><strong>R2 - Event &amp; performance counts</strong> - a choice of four groupings: segment &amp; genre, country, country &amp; city, or country, city &amp; venue.</li>
@@ -305,7 +306,7 @@
 <li><strong>R9 - Event noun phrases</strong> - for each event with reviews, the most popular noun phrases from its review comments. Rather than parsing grammar with a part-of-speech (POS) tagger, it removes common filler words and counts the frequent word runs that remain, which in review writing are mostly nouns and their modifiers. The output could seed a word cloud per event.</li>
 </ul>
 <h2 id="organizer-toolkit">10. Organizer Toolkit</h2>
-<p>Available to either role.</p>
+<p>Available to organizers only.</p>
 <ul>
 <li><strong>Suggest pricing &amp; tier structure for a new performance</strong> - asks for an event ID (to read its genre) and a venue ID (for its capacity), then suggests a number of price tiers, a price for each, and a rough capacity split, based on comparable past performances (same genre, similar venue capacity, same city, recent). If too few close comparables exist, the search widens automatically (city, then country, then anywhere; capacity band, then recency), and the suggestion states which comparables it actually used so the result is never a black box.</li>
 </ul>
