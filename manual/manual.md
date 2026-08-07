@@ -24,7 +24,7 @@ either role.
 
 ## 2. Getting started
 
-**Prerequisites:** JDK 17 or newer, MySQL 8 running locally, and Git.
+**Prerequisites:** JDK 17 or newer, and MySQL 8 running locally.
 
 **One-time setup**, from the repository root:
 

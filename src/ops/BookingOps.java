@@ -458,7 +458,7 @@ public class BookingOps {
                      "JOIN venue v ON p.venue_id = v.venue_id " +
                      "WHERE p.status = 'SCHEDULED' AND p.performance_datetime > NOW() " +
                      "ORDER BY p.performance_datetime";
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:MM");
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
         System.out.println("\n--- Upcoming Performances ---");
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
