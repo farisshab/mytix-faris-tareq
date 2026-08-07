@@ -399,7 +399,7 @@ public class ResaleOps {
         System.out.printf("Buy %s for $%.2f? (Y/N) > ", seatInfo, chosen.listPrice());
         String confirm = scanner.nextLine().trim();
         if (!confirm.equalsIgnoreCase("Y")) {
-            System.out.println("Not putchased.");
+            System.out.println("Not purchased.");
             return;
         }
 
