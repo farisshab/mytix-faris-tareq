@@ -767,14 +767,11 @@ public class ReportsOps {
         }
     }
     
-    // R9: Presents for each event the set of most popular NOUN phrases associated with the event.
-    // R9: most popular noun phrases per event, from the review comments.
-    // No POS tagger or external library: we approximate noun phrases as runs of
-    // "content" words (everything that isn't a stopword), which for review prose is
-    // mostly nouns and their modifiers ("opening act", "sound quality"). We count
-    // 1-to-3 word phrases within those runs, rank by popularity (with a bump for
-    // longer phrases), and drop phrases already covered by a longer one shown above.
-    // Simple and documented, which the spec allows; it is enough to seed a word cloud.
+    // R9: for each event, the most popular noun phrases from its review comments.
+    // With no part-of-speech (POS) tagger, we approximate noun phrases as frequent
+    // runs of content words (non-stopwords), which in review prose are mostly nouns
+    // and their modifiers. We count 1-to-3 word phrases, rank by popularity (longer
+    // phrases bumped up), and drop any already covered by a longer phrase above.
     private static final Set<String> STOPWORDS = new HashSet<>(Arrays.asList(
         "a","an","the","and","or","but","of","to","in","on","at","for","with","was","were","is","are","be","been",
         "being","it","its","our","we","us","my","your","their","they","them","he","she","his","her","this","that",

@@ -302,7 +302,7 @@
 <li><strong>R6 - Most cancellations</strong> - a choice of customers with the most cancelled tickets, or organizers with the most cancelled performances, both within the past year.</li>
 <li><strong>R7 - Sell-through</strong> - a choice of per performance, per tier of one performance, or sold-out/under-a-quarter performances by city for one month.</li>
 <li><strong>R8 - Resale report</strong> - a choice of per-event resale statistics (all time), or the top ten events by resale volume in a chosen date range.</li>
-<li><strong>R9 - Event noun phrases</strong> - for each event with reviews, the most popular noun phrases drawn from its review comments. Without a part-of-speech tagger, noun phrases are approximated as frequent runs of content words (stopwords removed), which for review prose are mostly nouns and their modifiers; the output could seed a word cloud per event.</li>
+<li><strong>R9 - Event noun phrases</strong> - for each event with reviews, the most popular noun phrases from its review comments. Rather than parsing grammar with a part-of-speech (POS) tagger, it removes common filler words and counts the frequent word runs that remain, which in review writing are mostly nouns and their modifiers. The output could seed a word cloud per event.</li>
 </ul>
 <h2 id="organizer-toolkit">10. Organizer Toolkit</h2>
 <p>Available to either role.</p>
@@ -311,7 +311,7 @@
 </ul>
 <h2 id="system-limitations">11. System limitations</h2>
 <ul>
-<li>R9’s noun phrases come from a stopword-and-frequency heuristic, not a real part-of-speech parser, so an occasional adjective or verb slips into the results.</li>
+<li>R9 finds its noun phrases by removing common filler words and counting what’s left, rather than actually parsing the grammar with a POS tagger, so now and then an adjective or verb slips in among the real noun phrases.</li>
 <li>Sign-in is email-only, with no password or other credential; anyone who knows or guesses an email address in the system can sign in as that user.</li>
 <li>Payment information is entirely fabricated and never validated against a real card network, per the project specification; there is no real payment gateway.</li>
 <li>Long result lists (e.g. Q1 with a wide radius, or a customer with many cancellable tickets) print in full with no pagination, which could become unwieldy on a much larger dataset than the sample data provided.</li>

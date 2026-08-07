@@ -217,10 +217,10 @@ specification's one stated exception.
 - **R8 - Resale report** - a choice of per-event resale statistics (all time), or
   the top ten events by resale volume in a chosen date range.
 - **R9 - Event noun phrases** - for each event with reviews, the most popular noun
-  phrases drawn from its review comments. Without a part-of-speech tagger, noun
-  phrases are approximated as frequent runs of content words (stopwords removed),
-  which for review prose are mostly nouns and their modifiers; the output could seed
-  a word cloud per event.
+  phrases from its review comments. Rather than parsing grammar with a part-of-speech
+  (POS) tagger, it removes common filler words and counts the frequent word runs that
+  remain, which in review writing are mostly nouns and their modifiers. The output
+  could seed a word cloud per event.
 
 
 ## 10. Organizer Toolkit
@@ -238,8 +238,9 @@ Available to either role.
 
 ## 11. System limitations
 
-- R9's noun phrases come from a stopword-and-frequency heuristic, not a real
-  part-of-speech parser, so an occasional adjective or verb slips into the results.
+- R9 finds its noun phrases by removing common filler words and counting what's
+  left, rather than actually parsing the grammar with a POS tagger, so now and then
+  an adjective or verb slips in among the real noun phrases.
 - Sign-in is email-only, with no password or other credential; anyone who knows or
   guesses an email address in the system can sign in as that user.
 - Payment information is entirely fabricated and never validated against a real
