@@ -9,7 +9,7 @@ import java.util.Scanner;
 import ops.SearchOps;
 import util.ConsoleUtil;
 
-public class SearchMenu {
+public class QueriesMenu {
     public static void listMenu(Connection conn, Scanner scanner) throws SQLException {
         boolean back = false;
         while (!back) {
@@ -33,7 +33,7 @@ public class SearchMenu {
     private static void printMenu() {
         System.out.print("""
                 
-            === Search ===
+            === Queries ===
             1) Performances near a location (Q1)
             2) Search by postal code (Q2)
             3) Search by exact address (Q3)

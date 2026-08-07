@@ -5,7 +5,7 @@ import CustomerMenu.CustomerMenu;
 import OrganizerMenu.OrganizerMenu;
 import OrganizerToolkitMenu.OrganizerToolkitMenu;
 import ReportsMenu.ReportsMenu;
-import SearchMenu.SearchMenu;
+import SearchMenu.QueriesMenu;
 import session.Session;
 import util.ConsoleUtil;
 
@@ -39,7 +39,7 @@ public class HomeMenu {
                             OrganizerMenu.listMenu(conn, scanner, session);
                         }
                     }
-                    case "4" -> SearchMenu.listMenu(conn, scanner);
+                    case "4" -> QueriesMenu.listMenu(conn, scanner);
                     case "5" -> ReportsMenu.listMenu(conn, scanner);
                     case "6" -> OrganizerToolkitMenu.listMenu(conn, scanner);
                     case "0" -> running = false;
@@ -61,7 +61,7 @@ public class HomeMenu {
             1) Account Management
             2) Customer Operations
             3) Organizer Operations
-            4) Search
+            4) Queries
             5) Reports
             6) Organizer Toolkit
             0) Exit
