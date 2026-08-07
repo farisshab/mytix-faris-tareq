@@ -15,7 +15,7 @@ MySQL has no built-in function for plain lat/long, so it's the formula written d
 ```
 6371 * ACOS(COS(lat1)*COS(lat2)*COS(lng2-lng1) + SIN(lat1)*SIN(lat2))
 ```
-all in radians, where 6371 = Earth's radius im km.
+all in radians, where 6371 = Earth's radius in km.
 Due to floating point rounding, the ACOS argument can reach slightly outside of [-1, 1], so we wrap everything in `LEAST(1, GREATEST(-1, ...))`
 
 **Decision 2 - default search radius is 50km, user can override**
@@ -132,7 +132,7 @@ across every performance instead of just one. For each show we get:
 - two flags for whether any reserved or any GA availability is left.
 
 We can keep this as a shared view so Q1, Q4 and Q5 all read from the same
-definition (rememebr to confirm with Faris, since his Q1 ranking will also want the
+definition (remember to confirm with Faris, since his Q1 ranking will also want the
 "cheapest available ticket").
 
 **Decision 15 - "any combination" is one query, not hand-built SQL strings.**

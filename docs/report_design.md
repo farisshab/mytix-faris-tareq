@@ -91,7 +91,7 @@ bought, showing their in-city counts next to the totals.
   should count towards the owner.
 - Only `cancel_type = 'CUSTOMER'` counts, because the *organizer* cancelling a
   performance should not count toward the customer.
-- **Organizers with most cancelled performances**: staightforward --
+- **Organizers with most cancelled performances**: straightforward --
   `performance.status = 'CANCELLED'` within the past year, grouped by
   `event.organizer_id`.
 

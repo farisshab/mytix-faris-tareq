@@ -609,7 +609,7 @@ public class BookingOps {
             if (!wasCancelled) {
                 // Someone else already cancelled this ticket (by duplicate/concurrent request)
                 conn.rollback();
-                System.out.println("That ticket was already cancelled. No refund issues.");
+                System.out.println("That ticket was already cancelled. No refund issued.");
                 return;
             }
 
