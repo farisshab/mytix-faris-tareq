@@ -20,17 +20,23 @@ public class Main {
             try (Connection conn = DBConnection.connect(config)) {
                 System.out.println("Connected to MyTix database,");
 
-                Scanner authScanner = new Scanner(System.in);
+                // One Scanner for the whole session, shared by auth and every menu.
+                // Creating a second Scanner on System.in would lose buffered input,
+                // which breaks piped/redirected input the moment control changes hands.
+                Scanner scanner = new Scanner(System.in);
                 boolean continueToSignIn = true;
                 while (continueToSignIn) {
                     ConsoleUtil.clear();
-                    Session session = AuthOps.authenticate(conn, authScanner);
+                    Session session = AuthOps.authenticate(conn, scanner);
 
                     // HomeMenu returns true only when the signed-in user just deleted their own account
                     // In that case, we loop back to the sign-in screen
-                    continueToSignIn = HomeMenu.listMenu(conn, session);
+                    continueToSignIn = HomeMenu.listMenu(conn, scanner, session);
                 }
             }
+        } catch (java.util.NoSuchElementException e) {
+            // stdin reached end-of-input (piped or redirected input ran out); exit cleanly
+            System.out.println("\nEnd of input, exiting. Goodbye.");
         } catch (Exception e) {
             System.err.println("Fatal error: " + e.getMessage());
             e.printStackTrace();
