@@ -158,7 +158,7 @@ public class ReportsOps {
             "GROUP BY sg.segment_name, g.genre_name ORDER BY sg.segment_name, g.genre_name";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             try (ResultSet rs = stmt.executeQuery()) {
-                System.out.println("\n--- Events & performances per segement/genre ---");
+                System.out.println("\n--- Events & performances per segment/genre ---");
                 boolean any = false;
                 while (rs.next()) {
                     any = true;
