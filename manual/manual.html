@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10.1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>manual</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: 1.5em;}
+    div.column{flex: auto;}
+    @media screen {
+    div.columns{gap: min(4vw, 1.5em);}
+    div.column{overflow-x: auto;}
+    }
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<h1 id="mytix---user-manual">MyTix - User Manual</h1>
+<p>CSCC43 Database Design Project</p>
+<p><strong>Group members</strong> - Tareq Abousherif (1007977824) -
+Faris Shabaytah (1011300986)</p>
+<h2 id="overview">1. Overview</h2>
+<p>This manual explains how to build, run, and use MyTix from the
+command line, walks through every operation, query, and report reachable
+from the interface, and closes with the system’s known limitations and
+possible improvements. For the conceptual design, the ER diagram, the
+relational schema, and the normal-form justification, see
+<code>report.pdf</code>.</p>
+<p>MyTix is a single text-based interface shared by customers and
+organizers. Which menus are available depends on the role of whoever is
+signed in: a customer sees Customer Operations and not Organizer
+Operations, and vice versa. Account management, search queries, reports,
+and the organizer toolkit are available to either role.</p>
+<h2 id="getting-started">2. Getting started</h2>
+<p><strong>Prerequisites:</strong> JDK 17 or newer, MySQL 8 running
+locally, and Git.</p>
+<p><strong>One-time setup</strong>, from the repository root:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cp</span> config.properties.example config.properties</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">mysql</span> <span class="at">-u</span> root <span class="at">-p</span> <span class="op">&lt;</span> sql/schema.sql</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">mysql</span> <span class="at">-u</span> root <span class="at">-p</span> <span class="op">&lt;</span> sql/load.sql</span></code></pre></div>
+<p><code>config.properties</code> only needs editing if your local MySQL
+login differs from the default (<code>root</code>, no password); it is
+gitignored, so credentials stay local. <code>schema.sql</code> and
+<code>load.sql</code> each select the <code>mytix</code> database
+themselves.</p>
+<p><strong>Running the app:</strong></p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">chmod</span> +x run.sh    <span class="co"># first time only</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ex">./run.sh</span></span></code></pre></div>
+<p><code>run.sh</code> compiles everything under <code>src/</code> and
+launches the interface. All commands above assume the repository root as
+the working directory, since the app locates
+<code>config.properties</code> by relative path, the same way
+<code>sql/schema.sql</code> and <code>sql/load.sql</code> are referenced
+from the repository root throughout this manual.</p>
+<h2 id="signing-in">3. Signing in</h2>
+<p>The first screen is:</p>
+<pre><code>=== Welcome to MyTix ===
+1) Sign in
+2) Create an account</code></pre>
+<p><strong>Sign in</strong> asks only for an email address; there is no
+password. If the email matches an active (non-deleted) account, you are
+signed in as that user, with whichever role (customer or organizer) the
+account was created with.</p>
+<p><strong>Create an account</strong> asks for a role (customer or
+organizer), full name, address, email, and date of birth (must be 18 or
+older). A customer account also collects a credit card (card number,
+cardholder name, expiry month and year); this is fully fabricated data,
+never validated against a real payment network, per the project
+specification. If the email belongs to a previously deleted account, you
+are offered the option to reactivate it with its original information
+rather than create a duplicate.</p>
+<p>Once signed in, you land on the Home Menu, which stays available
+until you choose Exit or delete your own account (which signs you out
+and returns you to this welcome screen).</p>
+<h2 id="home-menu">4. Home Menu</h2>
+<pre><code>===== MyTix =====
+1) Account Management
+2) Customer Operations   (customers only)
+3) Organizer Operations  (organizers only)
+4) Queries
+5) Reports
+6) Organizer Toolkit
+0) Exit</code></pre>
+<p>Sections 5-10 below cover each of these in turn.</p>
+<h2 id="account-management">5. Account Management</h2>
+<p>Available to both roles.</p>
+<ul>
+<li><strong>View Account Information</strong> - prints your name,
+address, email, date of birth, and role, read fresh from the database
+each time (not cached from sign-in).</li>
+<li><strong>View Card Information</strong> - customers only; prints the
+card(s) on file. Prints a message instead if signed in as an
+organizer.</li>
+<li><strong>Update Email</strong> - checks the new email isn’t already
+registered to someone else before applying the change.</li>
+<li><strong>Update Address</strong> - a single free-text prompt.</li>
+<li><strong>Update Credit Card</strong> - customers only; replaces the
+card on file (or adds one, if none exists), with the same validation as
+account creation (valid month 1-12, not already expired).</li>
+<li><strong>Delete Account</strong> - asks for Y/N confirmation. If you
+have any history anywhere in the system (orders, tickets, listings,
+reviews, an organized event), the account is deactivated rather than
+removed, so that history stays intact; a brand-new account with no
+history is removed outright. Deleting your account signs you out
+immediately.</li>
+</ul>
+<h2 id="customer-operations">6. Customer Operations</h2>
+<p>Visible only when signed in as a customer.</p>
+<ul>
+<li><strong>Book Tickets</strong> - lists upcoming performances, then
+that performance’s sections with their tier and price. Choosing a
+general-admission section asks for a quantity; choosing a reserved
+section shows the currently available seats grouped by row and asks for
+a row and seat number per ticket. Requires a card on file.</li>
+<li><strong>Cancel Tickets</strong> - lists your own active tickets for
+performances at least seven days away, grouped by performance with
+seat/section detail so multiple seats for the same show are
+distinguishable. Cancelling refunds the ticket’s full face value
+(implied, not a separate transaction) and frees the seat or GA capacity
+for resale to someone else. If the cancelled ticket had an active resale
+listing, that listing is withdrawn automatically.</li>
+<li><strong>List a Ticket for Resale</strong> - lists your own
+currently-owned, unlisted, active tickets, shows each one’s resale cap,
+and asks for an asking price (must not exceed the cap).</li>
+<li><strong>Withdraw a Listing</strong> - lists your own active listings
+and asks which to pull.</li>
+<li><strong>Buy a Listing</strong> - lists upcoming performances, then
+that performance’s active listings from other customers (never your
+own). Requires a card on file. Ownership of the ticket transfers to you
+immediately; this does not create an order, since resale is a
+peer-to-peer transfer, not a primary-market purchase.</li>
+<li><strong>Submit a Review</strong> - lists performances you attended
+(held a non-cancelled ticket for) within the past year that you haven’t
+already reviewed, then asks for an event rating and a venue rating (1-5
+each) and an optional comment.</li>
+</ul>
+<h2 id="organizer-operations">7. Organizer Operations</h2>
+<p>Visible only when signed in as an organizer.</p>
+<ul>
+<li><strong>Create Event</strong> - title, genre, and resale cap
+percentage (must be at least 100).</li>
+<li><strong>Add Performance to Event</strong> - one of your own events,
+a venue, and a date/time.</li>
+<li><strong>Define Price Tiers</strong> - one of your own performances,
+then one or more tier codes and prices.</li>
+<li><strong>Assign Sections to Tiers</strong> - maps each of the venue’s
+sections to one of that performance’s defined tiers.</li>
+<li><strong>Set Resale Cap</strong> - updates an event’s resale cap
+percentage.</li>
+<li><strong>Update Tier Price</strong> - refused if any ticket has
+already sold in that tier for that performance, since past sales must
+never silently change value.</li>
+<li><strong>Block Seat</strong> - marks an available reserved seat
+unsellable for one performance (obstructed view, equipment, etc.);
+refused if the seat is already sold.</li>
+<li><strong>Unblock Seat</strong> - reverses a block.</li>
+<li><strong>Cancel a Performance</strong> - asks for Y/N confirmation,
+then cancels the whole performance: every active ticket for it is
+refunded and cancelled, every held seat is freed, and any active resale
+listings on those tickets are withdrawn, all in one all-or-nothing
+transaction.</li>
+</ul>
+<h2 id="queries">8. Queries</h2>
+<p>Available to either role. Every result list shows the underlying
+<code>_id</code> values needed to act on a result elsewhere in the app
+(e.g. a performance ID surfaced here can be typed directly into Book
+Tickets).</p>
+<ul>
+<li><strong>Q1 - Performances near a location</strong> - latitude,
+longitude, an optional search radius in km (default 50), and a choice of
+ranking: nearest first, cheapest available ticket first, or most
+expensive first. A performance with no priced section yet always sorts
+last under either price ranking, never first.</li>
+<li><strong>Q2 - Search by postal code</strong> - returns performances
+at venues in the same or an adjacent postal code, where “adjacent” means
+sharing the first two characters of the postal code (the general
+metro-area prefix).</li>
+<li><strong>Q3 - Search by exact address</strong> - an exact,
+case-sensitive address match; finds the venue and lists its upcoming
+performances.</li>
+<li><strong>Q4 - By date range &amp; availability</strong> - a date
+range and a minimum number of available tickets.</li>
+<li><strong>Q5 - Advanced filters</strong> - combinable filters (city,
+segment/genre, date range, price range, minimum availability, reserved
+vs. general admission).</li>
+<li><strong>Q6 - Seat map for a performance</strong> - per section:
+tier, price, and available/sold/blocked counts.</li>
+<li><strong>Q7 - Best available seats</strong> - a performance, a
+desired ticket count, and an optional budget; finds that many
+consecutive seats in one row at the lowest total price.</li>
+</ul>
+<h2 id="reports">9. Reports</h2>
+<p>Available to either role. All nine are pure SQL except R9, per the
+project specification’s one stated exception.</p>
+<ul>
+<li><strong>R1 - Tickets sold &amp; revenue by city</strong> - a date
+range, then a choice of grouping by city or by venue within one chosen
+city. Counts active tickets only; a cancelled ticket was refunded, so
+its money isn’t counted as revenue.</li>
+<li><strong>R2 - Event &amp; performance counts</strong> - a choice of
+four groupings: segment &amp; genre, country, country &amp; city, or
+country, city &amp; venue.</li>
+<li><strong>R3 - Organizer revenue ranking</strong> - a choice of
+overall, per country, or one city. Same active-tickets-only revenue rule
+as R1.</li>
+<li><strong>R4 - Possible scalpers by city</strong> - flags customers
+who, in the past year, bought at least ten tickets and listed more than
+half of them for resale.</li>
+<li><strong>R5 - Customer order ranking</strong> - a choice of an
+overall ranking in a user-supplied date range, or a per-city ranking
+over the past year restricted to customers with at least two orders that
+year.</li>
+<li><strong>R6 - Most cancellations</strong> - a choice of customers
+with the most cancelled tickets, or organizers with the most cancelled
+performances, both within the past year.</li>
+<li><strong>R7 - Sell-through</strong> - a choice of per performance,
+per tier of one performance, or sold-out/under-a-quarter performances by
+city for one month.</li>
+<li><strong>R8 - Resale report</strong> - a choice of per-event resale
+statistics (all time), or the top ten events by resale volume in a
+chosen date range.</li>
+<li><strong>R9 - Event noun phrases</strong></li>
+</ul>
+<h2 id="organizer-toolkit">10. Organizer Toolkit</h2>
+<p>Available to either role.</p>
+<ul>
+<li><strong>Suggest pricing &amp; tier structure for a new
+performance</strong> - asks for an event ID (to read its genre) and a
+venue ID (for its capacity), then suggests a number of price tiers, a
+price for each, and a rough capacity split, based on comparable past
+performances (same genre, similar venue capacity, same city, recent). If
+too few close comparables exist, the search widens automatically (city,
+then country, then anywhere; capacity band, then recency), and the
+suggestion states which comparables it actually used so the result is
+never a black box.</li>
+</ul>
+<h2 id="system-limitations">11. System limitations</h2>
+<ul>
+<li>R9 is not implemented. It currently shows as TODO: within the
+interface</li>
+<li>Sign-in is email-only, with no password or other credential; anyone
+who knows or guesses an email address in the system can sign in as that
+user.</li>
+<li>Payment information is entirely fabricated and never validated
+against a real card network, per the project specification; there is no
+real payment gateway.</li>
+<li>Long result lists (e.g. Q1 with a wide radius, or a customer with
+many cancellable tickets) print in full with no pagination, which could
+become unwieldy on a much larger dataset than the sample data
+provided.</li>
+<li>The interface is a single-user text session; there is no concurrent
+multi-user view of the same running app (though the underlying database
+itself is concurrency-safe, per the seat-hold and listing uniqueness
+constraints described in <code>report.pdf</code>).</li>
+<li>General-admission capacity concurrency safety relies on locking the
+section’s row for the duration of a booking transaction; a very
+high-volume simultaneous GA sale on the exact same section would break
+through that lock rather than process in parallel.</li>
+</ul>
+<h2 id="possible-improvements">12. Possible improvements</h2>
+<ul>
+<li>Wire R9 into the Reports menu so it is reachable like R1-R8.</li>
+<li>Add real authentication (a password, at minimum) rather than
+email-only sign-in.</li>
+<li>Add pagination or a result-count cap to long-running query/report
+output.</li>
+<li>Extend the organizer toolkit’s extra-credit revenue-change estimate
+(a constant-elasticity demand model, outlined in
+<code>docs/report_design.md</code>) from design into a working
+feature.</li>
+<li>A graphical or web front end in place of the text interface, for a
+more typical end-user experience.</li>
+</ul>
+</body>
+</html>
