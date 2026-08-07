@@ -18,8 +18,10 @@ see `report.pdf`.
 MyTix is a single text-based interface shared by customers and organizers. Which
 menus are available depends on the role of whoever is signed in: a customer sees
 Customer Operations and not Organizer Operations, and vice versa. Account
-management, search queries, reports, and the organizer toolkit are available to
-either role.
+management and search queries are available to either role. Reports and the
+organizer toolkit are organizer-only, since they are operator tools (revenue
+rankings, sell-through, pricing suggestions) that a customer has no need for; a
+customer who selects them is told the option is unavailable.
 
 
 ## 2. Getting started
@@ -66,6 +68,11 @@ The first screen is:
 matches an active (non-deleted) account, you are signed in as that user, with
 whichever role (customer or organizer) the account was created with.
 
+**Sample logins** (from the loaded data, for trying the app out):
+`liam.roy1@example.com` is an organizer and `harper.khan7@example.com` is a
+customer. Any email in `data/users.csv` works; these are just two convenient
+ones.
+
 **Create an account** asks for a role (customer or organizer), full name, address,
 email, and date of birth (must be 18 or older). A customer account also collects a
 credit card (card number, cardholder name, expiry month and year); this is fully
@@ -87,8 +94,8 @@ welcome screen).
 2) Customer Operations   (customers only)
 3) Organizer Operations  (organizers only)
 4) Queries
-5) Reports
-6) Organizer Toolkit
+5) Reports               (organizers only)
+6) Organizer Toolkit     (organizers only)
 0) Exit
 ```
 
@@ -194,7 +201,7 @@ can be typed directly into Book Tickets).
 
 ## 9. Reports
 
-Available to either role. All nine are pure SQL except R9, per the project
+Available to organizers only. All nine are pure SQL except R9, per the project
 specification's one stated exception.
 
 - **R1 - Tickets sold & revenue by city** - a date range, then a choice of
@@ -225,7 +232,7 @@ specification's one stated exception.
 
 ## 10. Organizer Toolkit
 
-Available to either role.
+Available to organizers only.
 
 - **Suggest pricing & tier structure for a new performance** - asks for an event
   ID (to read its genre) and a venue ID (for its capacity), then suggests a number

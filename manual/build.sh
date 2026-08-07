@@ -11,6 +11,6 @@ export DYLD_FALLBACK_LIBRARY_PATH="/opt/homebrew/lib:${DYLD_FALLBACK_LIBRARY_PAT
 # weasyprint is called directly, since macOS strips DYLD_* when pandoc spawns
 # weasyprint as a subprocess.
 pandoc manual.md -o manual.html --standalone
-python3 -m weasyprint manual.html manual.pdf -s ../report/report.css
+python3 -m weasyprint manual.html ../manual.pdf -s ../report/report.css
 
-echo "Wrote manual/manual.pdf"
+echo "Wrote manual.pdf (repository root)"

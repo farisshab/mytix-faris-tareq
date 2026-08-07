@@ -30,6 +30,6 @@ PY
 # (macOS strips DYLD_* when pandoc spawns weasyprint as a subprocess, so we don't
 # use pandoc's --pdf-engine.)
 pandoc report_full.md -o report.html --standalone
-python3 -m weasyprint report.html report.pdf -s report.css
+python3 -m weasyprint report.html ../report.pdf -s report.css
 
-echo "Wrote report/report.pdf"
+echo "Wrote report.pdf (repository root)"
