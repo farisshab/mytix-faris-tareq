@@ -10,8 +10,7 @@ import session.Session;
 import util.ConsoleUtil;
 
 public class HomeMenu {
-    public static boolean listMenu(Connection conn, Session session) {
-        Scanner scanner = new Scanner(System.in);
+    public static boolean listMenu(Connection conn, Scanner scanner, Session session) {
         boolean running = true;
         while (running) {
             printMenu();
